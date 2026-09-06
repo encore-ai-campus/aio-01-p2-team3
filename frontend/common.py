@@ -6,14 +6,16 @@ import streamlit as st
 
 
 COLORS = {
-    "primary": "#6577DD",
-    "primary_soft": "#EEF0FF",
-    "canvas": "#F7F8FC",
-    "border": "#E2E6F2",
-    "text": "#1E2533",
-    "muted": "#73809A",
+    "primary": "#6374DC",
+    "primary_soft": "#EEF1FF",
+    "canvas": "#F8F9FC",
+    "border": "#E3E7F1",
+    "text": "#202737",
+    "muted": "#778198",
     "card": "#FFFFFF",
 }
+
+MENU_ITEMS = ("홈", "AI 육아 도우미", "육아 관리", "내 정보")
 
 
 def init_session() -> None:
@@ -28,46 +30,106 @@ def init_session() -> None:
         "chat_messages": [],
         "pending_stt_tool_call_id": None,
         "request_in_progress": False,
+        "navigation_restored": False,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
+
+
+def restore_navigation_from_url() -> None:
+    """새 Streamlit 세션에서도 테스트 로그인과 현재 메뉴를 복원한다."""
+    if st.session_state.navigation_restored:
+        return
+
+    params = st.query_params
+    page = params.get("page")
+    if page in MENU_ITEMS:
+        st.session_state.selected_menu = page
+
+    # 실제 인증이 아닌 테스트 로그인 화면이므로 URL에 테스트 상태만 저장한다.
+    if params.get("demo") == "1":
+        st.session_state.logged_in = True
+        st.session_state.user_id = "guardian-seoa"
+        st.session_state.baby_id = "baby-seoa-001"
+        st.session_state.session_id = "demo-session"
+
+    st.session_state.navigation_restored = True
+
+
+def persist_navigation_to_url() -> None:
+    """현재 화면을 URL에 기록해 브라우저 새로고침 뒤에도 유지한다."""
+    if not st.session_state.logged_in:
+        return
+
+    desired = {"demo": "1", "page": st.session_state.selected_menu}
+    current = st.query_params.to_dict()
+    if current != desired:
+        st.query_params.clear()
+        st.query_params.update(desired)
 
 
 def apply_style() -> None:
     st.markdown(
         """
         <style>
-        .stApp { background: #F7F8FC; color: #1E2533; }
+        .stApp { background: #F8F9FC; color: #202737; }
         #MainMenu, footer, header { visibility: hidden; }
-        .block-container { max-width: 1200px; padding: 1.0rem 1.4rem 2rem; }
-        [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E2E6F2; }
+        .block-container, [data-testid="stMainBlockContainer"] { max-width: 1080px !important; padding: 1.6rem 1.35rem 2rem; margin: 0 auto; }
+        [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E3E7F1;
+            min-width: 230px !important; max-width: 230px !important; }
+        [data-testid="stSidebar"] > div:first-child { min-width: 230px !important; max-width: 230px !important; }
         [data-testid="stSidebar"] > div:first-child { padding-top: 1.1rem; }
+        /* pages/ 폴더에서 Streamlit이 자동 생성하는 메뉴는 사용하지 않습니다. */
+        [data-testid="stSidebarNav"] { display: none; }
         .brand { font-weight: 800; font-size: 1.05rem; margin: .25rem 0 1.6rem; }
+        .sidebar-baby-card { background:#F7F8FC; border:1px solid #E3E7F1; border-radius:12px;
+            padding:.7rem; color:#202737; }
+        .sidebar-baby-name { font-size:.84rem; font-weight:800; }
+        .sidebar-baby-age { color:#778198; font-size:.72rem; margin-top:.12rem; }
         .page-title { font-size: 1.7rem; font-weight: 800; margin: 0; }
-        .page-subtitle { color: #73809A; margin: .18rem 0 1.25rem; font-size: .92rem; }
-        .baby-badge { background: #FFFFFF; border: 1px solid #E2E6F2; border-radius: 999px;
+        .page-subtitle { color: #778198; margin: .18rem 0 1.25rem; font-size: .92rem; }
+        .baby-badge { background: #FFFFFF; border: 1px solid #E3E7F1; border-radius: 999px;
             padding: .52rem .8rem; font-weight: 700; font-size: .84rem; text-align:center; }
-        .panel { background: #FFFFFF; border: 1px solid #E2E6F2; border-radius: 18px; padding: 1.1rem; }
-        .soft-panel { background: #EEF0FF; border: 1px solid #CBD3FF; border-radius: 17px; padding: 1rem 1.15rem; }
-        .metric-card { background: #FFFFFF; border: 1px solid #E2E6F2; border-radius: 15px; padding: .92rem 1rem; min-height: 84px; }
-        .metric-label { color: #73809A; font-size: .78rem; margin-bottom: .38rem; }
+        .panel { background: #FFFFFF; border: 1px solid #E3E7F1; border-radius: 18px; padding: 1.1rem; }
+        .soft-panel { background: #EEF1FF; border: 1px solid #CBD3FF; border-radius: 17px; padding: 1rem 1.15rem; }
+        .metric-card { background: #F7F8FC; border: 0; border-radius: 11px; padding: .92rem 1rem; min-height: 84px; }
+        .metric-label { color: #778198; font-size: .78rem; margin-bottom: .38rem; }
         .metric-value { color: #182131; font-weight: 800; font-size: 1.25rem; }
-        .metric-unit { color: #6577DD; font-size: .8rem; font-weight: 700; }
+        .metric-unit { color: #6374DC; font-size: .8rem; font-weight: 700; }
         .section-title { font-size: 1.08rem; font-weight: 800; margin: 0 0 .8rem; }
-        .muted { color: #73809A; font-size: .82rem; }
-        .notice { background:#F0F2FF; color:#64718C; border-radius:10px; padding:.68rem .8rem; font-size:.78rem; }
-        .chat-ai { background:#F0F2F8; border-radius:12px; padding:.75rem .85rem; margin:.5rem 2rem .5rem 0; font-size:.9rem; }
-        .chat-user { background:#6577DD; color:#FFF; border-radius:12px; padding:.75rem .85rem; margin:.5rem 0 .5rem 2rem; font-size:.9rem; }
-        .record-row { border: 1px solid #E2E6F2; border-radius: 13px; padding: .7rem .8rem; margin: .48rem 0; }
-        .record-time { color:#73809A; font-size:.77rem; }
+        .muted { color: #778198; font-size: .82rem; }
+        .notice { background:#EEF1FF; color:#68758E; border-radius:10px; padding:.68rem .8rem; font-size:.78rem; }
+        .chat-ai { background:#F1F3F8; border-radius:12px; padding:.75rem .85rem; margin:.5rem 2rem .5rem 0; font-size:.9rem; }
+        .chat-user { background:#6374DC; color:#FFF; border-radius:12px; padding:.75rem .85rem; margin:.5rem 0 .5rem 2rem; font-size:.9rem; }
+        .record-row { border: 1px solid #E3E7F1; border-radius: 13px; padding: .7rem .8rem; margin: .48rem 0; }
+        .record-time { color:#778198; font-size:.77rem; }
         .record-name { font-weight:800; font-size:.9rem; }
         .record-detail { color:#6577A0; font-size:.76rem; }
-        div[data-testid="stButton"] > button { border-radius: 9px; border-color: #DDE2F2; font-weight: 650; }
-        div[data-testid="stButton"] > button[kind="primary"] { background:#6577DD; border-color:#6577DD; }
-        .stTabs [data-baseweb="tab-list"] { gap: .3rem; background:#EEF0FF; padding:.25rem; border-radius:11px; }
-        .stTabs [data-baseweb="tab"] { flex:1; justify-content:center; border-radius:8px; height:38px; }
-        .stTabs [aria-selected="true"] { background:#FFF; box-shadow:0 1px 4px #DCE0EE; }
+        div[data-testid="stButton"] > button { background:#FFFFFF; border-radius: 9px; border-color: #DFE4F1; font-weight: 650; }
+        div[data-testid="stButton"] > button[kind="primary"] { background:#6374DC; border-color:#6374DC; color:#FFFFFF; }
+        div[data-baseweb="input"] > div, div[data-baseweb="select"] > div { background:#F6F7FB; border-color:#DFE4F1; }
+        .stTabs [data-baseweb="tab-list"] { gap:0; background:#EEF1FF; padding:.28rem; border-radius:11px; }
+        .stTabs [data-baseweb="tab"] { flex:1; justify-content:center; border-radius:8px; height:39px;
+            color:#69758D; font-size:.84rem; }
+        .stTabs [aria-selected="true"] { background:#FFF; color:#6374DC; box-shadow:0 1px 5px #DCE0EE; }
         .stTabs [data-baseweb="tab-highlight"] { display:none; }
+        /* Streamlit 카드 컨테이너의 실제 내부 요소까지 흰색으로 고정 */
+        [data-testid="stVerticalBlockBorderWrapper"],
+        [data-testid="stVerticalBlockBorderWrapper"] > div,
+        [data-testid="stVerticalBlockBorderWrapper"] > div > div,
+        div.stVerticalBlock.st-emotion-cache-1te8eqs {
+            background-color: #FFFFFF !important;
+            border-radius: 18px;
+            border-color: #E3E7F1;
+        }
+        /* 지표 안쪽 박스는 시안의 아주 연한 회청색 */
+        [data-testid="stVerticalBlockBorderWrapper"] .metric-card {
+            background-color: #F4F6FB !important;
+        }
+        div.stVerticalBlock.st-emotion-cache-1te8eqs.st-key-feeding_card {
+            background-color: #EEF1FF !important;
+            border-color: #C9D2FF !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -106,27 +168,33 @@ def render_sidebar() -> str:
                 st.rerun()
 
         st.markdown("<br><br><br>", unsafe_allow_html=True)
-        st.caption("이 프로젝트는 실제 인증 없이 준비된 가짜 사용자 데이터로 시연됩니다.")
+        st.markdown(
+            "<div class='sidebar-baby-card'>"
+            "<span style='font-size:1.35rem'>👶</span> "
+            "<span class='sidebar-baby-name'>서아</span>"
+            "<div class='sidebar-baby-age'>생후 31일</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
     return st.session_state.selected_menu
 
 
 def render_feeding_reminder(reminder: dict) -> None:
-    st.markdown('<div class="soft-panel">', unsafe_allow_html=True)
-    top, actions = st.columns([2.2, 1.35], vertical_alignment="center")
-    with top:
-        st.markdown("**🍼 마지막 수유 후 3시간이 지났어요**")
-        st.caption("서아의 배고픔 신호를 확인해 주세요.")
-    with actions:
-        a, b, c = st.columns(3)
-        if a.button("수유했어요", key="feed_now", type="primary"):
-            st.session_state.selected_menu = "육아 관리"
-            st.session_state.care_tab = "육아 기록"
-            st.toast("육아 기록에서 수유 내용을 입력해 주세요.")
-        if b.button("10분 후", key="feed_snooze"):
-            st.toast("10분 후 다시 알려드릴게요.")
-        if c.button("건너뛰기", key="feed_skip"):
-            st.toast("설정한 간격 후 다시 알려드릴게요.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(border=True, key="feeding_card"):
+        top, actions = st.columns([2.15, 1.55], vertical_alignment="center")
+        with top:
+            st.markdown("#### 🍼 마지막 수유 후 3시간이 지났어요")
+            st.caption("서아의 배고픔 신호를 확인해 주세요.")
+        with actions:
+            a, b, c = st.columns(3)
+            if a.button("수유했어요", key="feed_now", type="primary", use_container_width=True):
+                st.session_state.selected_menu = "육아 관리"
+                st.session_state.care_tab = "육아 기록"
+                st.toast("육아 기록에서 수유 내용을 입력해 주세요.")
+            if b.button("10분 후", key="feed_snooze", use_container_width=True):
+                st.toast("10분 후 다시 알려드릴게요.")
+            if c.button("건너뛰기", key="feed_skip", use_container_width=True):
+                st.toast("설정한 간격 후 다시 알려드릴게요.")
 
 
 def metric_card(label: str, value: str, unit: str = "") -> None:
@@ -135,4 +203,3 @@ def metric_card(label: str, value: str, unit: str = "") -> None:
         f'<div class="metric-value">{value} <span class="metric-unit">{unit}</span></div></div>',
         unsafe_allow_html=True,
     )
-
