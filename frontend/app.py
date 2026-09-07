@@ -17,13 +17,21 @@ init_session()
 restore_navigation_from_url()
 apply_style()
 
+if st.session_state.pending_notice:
+    message = "10분 후 다시 알려드릴게요." if st.session_state.pending_notice == "snooze" else "이번 알림은 건너뛰었어요."
+    st.toast(message)
+    st.session_state.pending_notice = ""
+
 if not st.session_state.logged_in:
     # 로그인 화면에는 Streamlit 기본 사이드바가 필요하지 않습니다.
     st.markdown(
         """
         <style>
-        [data-testid="stSidebar"] { display: none; }
-        [data-testid="stSidebarCollapsedControl"] { display: none; }
+        [data-testid="stSidebar"],
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stExpandSidebarButton"],
+        [data-testid="collapsedControl"],
+        header { display: none !important; }
         </style>
         """,
         unsafe_allow_html=True,

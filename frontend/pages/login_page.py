@@ -27,13 +27,11 @@ def render() -> None:
     with right:
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.caption("✣ 0–36개월 맞춤형 육아 도우미")
-        st.markdown("# 우리 아기의 하루를  \n<span style='color:#6577DD'>AI와 더 가깝게</span>", unsafe_allow_html=True)
-        st.markdown("수유 · 수면 · 배변 · 성장 기록부터 월령별 육아 정보, 예방접종 일정과 주변 의료기관까지 한곳에서 확인하세요.")
-        st.button("주요 기능 보기")
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<style>.login-headline{font-size:2.5rem;font-weight:800;line-height:1.15;margin:1rem 0}.login-headline .accent{color:#6577DD;font-size:1em;font-weight:900}@media(max-width:700px){.login-headline{font-size:2rem;white-space:nowrap}.login-headline .accent{white-space:normal}}</style><div class='login-headline'>우리 아기 맞춤<br><span class='accent'>육아 도우미 AI</span></div>", unsafe_allow_html=True)
+        st.markdown("수유·수면·배변·성장 기록부터 월령별 육아 정보, 예방접종 일정, 주변 의료기관까지.<br>AI가 우리 아기에게 필요한 정보를 알려드려요.", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:1.05rem;font-weight:800;margin:1.7rem 0 .7rem;color:#202737'>주요 기능</div>", unsafe_allow_html=True)
         st.markdown("✓ 알림과 버튼으로 간편하게 기록  ")
         st.markdown("✓ 아기 정보와 알레르기를 반영한 답변  ")
         st.markdown("✓ 공식 자료를 바탕으로 한 육아 안내")
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("<div class='panel'><b>👶 서아의 오늘</b><br><span class='muted'>생후 31일 · 분유 수유</span><br><br><div class='soft-panel'>🍼 마지막 수유 후 3시간이 지났어요<br><span class='muted'>서아의 배고픔 신호를 확인해 주세요.</span></div></div>", unsafe_allow_html=True)
-
