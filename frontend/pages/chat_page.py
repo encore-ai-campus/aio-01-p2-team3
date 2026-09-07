@@ -14,6 +14,7 @@ def _send(message: str) -> None:
 
 def render() -> None:
     baby = api.get_baby(st.session_state.baby_id)["data"]
+    st.session_state.setdefault("show_diaper_capture", False)
     topic_questions = {
         "feeding": "서아의 최근 기록을 기준으로 수유량과 수유 간격을 알려주세요.",
         "sleep": "서아의 월령에 맞는 수면 시간과 수면 패턴을 알려주세요.",
@@ -42,8 +43,26 @@ def render() -> None:
 
         chips = st.columns(4)
         for column, label in zip(chips, ["🍼 월령별 수유", "▣ 기저귀 사진 분석", "🏥 주변 소아과", "🍚 이유식 궁금증"]):
-            if column.button(label, use_container_width=True):
+            if column.button(label, key=f"chat_chip_{label}", use_container_width=True):
+                if label == "▣ 기저귀 사진 분석":
+                    st.session_state.show_diaper_capture = True
+                    st.rerun()
                 _send(label)
+                st.rerun()
+
+        if st.session_state.show_diaper_capture:
+            st.markdown("<div class='notice'>사진은 분석을 위해 선택하는 단계이며, 보호자가 저장을 선택하기 전에는 육아 기록으로 저장되지 않습니다.</div>", unsafe_allow_html=True)
+            camera_col, file_col = st.columns(2)
+            with camera_col:
+                camera_photo = st.camera_input("📷 카메라 촬영", key="diaper_camera")
+            with file_col:
+                selected_photo = st.file_uploader("🖼 사진 선택", type=["jpg", "jpeg", "png", "webp"], key="diaper_file")
+            photo = camera_photo or selected_photo
+            if photo is not None:
+                st.image(photo, caption="선택한 기저귀 사진", use_container_width=True)
+                st.info("사진 분석 기능은 기저귀 분석 API가 연결되면 사용할 수 있습니다.")
+            if st.button("사진 선택 닫기", key="close_diaper_capture"):
+                st.session_state.show_diaper_capture = False
                 st.rerun()
 
         input_col, send_col = st.columns([8, 1])

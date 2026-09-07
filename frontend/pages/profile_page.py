@@ -84,9 +84,11 @@ def render() -> None:
             left, right = st.columns(2)
             weight = left.number_input("현재 몸무게 (kg)", min_value=0.0, value=float(b["current_weight_kg"]), step=0.1)
             height = right.number_input("현재 키 (cm)", min_value=0.0, value=float(b["current_height_cm"]), step=0.1)
+            allergies_text = st.text_input("음식·약물 알레르기", value=", ".join(b["allergies"]), placeholder="예: 땅콩, 계란")
             save, cancel = st.columns(2)
             if save.form_submit_button("저장하기", type="primary", use_container_width=True):
-                st.session_state.profile_values.update({"baby_name": name, "birth_date": birth_date, "gender": gender, "feeding_type": feeding, "current_weight_kg": weight, "current_height_cm": height})
+                allergies = [item.strip() for item in allergies_text.split(",") if item.strip()]
+                st.session_state.profile_values.update({"baby_name": name, "birth_date": birth_date, "gender": gender, "feeding_type": feeding, "current_weight_kg": weight, "current_height_cm": height, "allergies": allergies})
                 st.session_state.profile_editing = False
                 st.toast("아기 정보가 저장되었습니다.")
                 st.rerun()
