@@ -45,7 +45,14 @@ baby_id
 session_id
 ```
 
-**백엔드 확정 필요:** 각 API에서 이 값을 body, query parameter, header 중 어느 방식으로 받는지와 로그인 응답의 정확한 `data` 구조.
+로그인을 제외한 인증 필요 API는 아래 HTTP 헤더를 사용합니다.
+
+```http
+X-User-Id: user-001
+X-Session-Id: 로그인_응답의_session_id
+```
+
+로그인 성공 `data`는 `user_id`, `guardian_name`, `baby_id`(미등록 사용자는 `null`), `session_id`를 반환합니다.
 
 ---
 
@@ -83,7 +90,13 @@ POST /api/test-login
 
 **프론트 입력:** 선택한 테스트 사용자 식별값
 
-**백엔드 확정 필요:** 요청 필드명(`user_id` 등), 로그인 성공 시 반환하는 보호자·아기·세션 데이터 전체 구조.
+요청 body는 아래와 같습니다.
+
+```json
+{"user_id": "user-001"}
+```
+
+로그인 성공 `data`는 공통 규칙의 `user_id`, `guardian_name`, `baby_id`, `session_id` 구조를 사용합니다.
 
 **프론트 처리:**
 
@@ -141,7 +154,8 @@ POST /api/care-logs
   "event_type": "feeding",
   "input_source": "ui",
   "recorded_at": "2026-09-04T14:30:00+09:00",
-  "idempotency_key": "session-001-ui-unique-key"
+  "idempotency_key": "session-001-ui-unique-key",
+  "confirmed_by_user": false
 }
 ```
 
@@ -260,6 +274,18 @@ PATCH /api/reminders/{reminder_id}
 수유했어요 버튼은 `confirm`만으로 기록을 만들지 않습니다. 수유 기록을 별도로 저장해야 다음 알림 기준이 갱신됩니다.
 
 **백엔드 확정 필요:** 수유 간격 설정 저장 API의 경로·요청·응답 구조.
+
+수유 간격 설정 저장 API는 아래로 확정합니다.
+
+```http
+PATCH /api/reminders/feeding/{baby_id}/settings
+```
+
+```json
+{"feeding_interval_minutes": 180}
+```
+
+`feeding_interval_minutes`는 30~720분입니다.
 
 ### 예방접종
 
