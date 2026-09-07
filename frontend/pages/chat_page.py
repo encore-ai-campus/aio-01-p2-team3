@@ -14,6 +14,16 @@ def _send(message: str) -> None:
 
 def render() -> None:
     baby = api.get_baby(st.session_state.baby_id)["data"]
+    topic_questions = {
+        "feeding": "서아의 최근 기록을 기준으로 수유량과 수유 간격을 알려주세요.",
+        "sleep": "서아의 월령에 맞는 수면 시간과 수면 패턴을 알려주세요.",
+        "hospital": "서아와 가까운 소아과를 찾는 방법을 알려주세요.",
+        "weaning": "서아의 월령에 맞는 이유식 시작 시기와 준비 방법이 궁금해요.",
+    }
+    topic = st.session_state.chat_topic
+    if topic in topic_questions and st.session_state.applied_chat_topic != topic:
+        _send(topic_questions[topic])
+        st.session_state.applied_chat_topic = topic
     st.markdown(f"<div class='page-title'>{baby['baby_name']}의 AI 육아 도우미</div><div class='page-subtitle'>생후 {baby['age_days']}일 · {baby['current_weight_kg']}kg · {baby['feeding_type']} 수유&nbsp;&nbsp; <span style='color:#20A26B'>● 아기 정보를 반영하고 있어요</span></div>", unsafe_allow_html=True)
     render_feeding_reminder({})
 
