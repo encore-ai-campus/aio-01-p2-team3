@@ -15,9 +15,9 @@ def build_stool_search_query(
     if observation.visible_red_area:
         signals.append("붉은 영역")
     if observation.black_tarry_appearance:
-        signals.append("검고 타르 같은 모습")
+        signals.append("검은 변, 타르 같은 변, 흑색변")
     if observation.pale_or_white_appearance:
-        signals.append("흰색 또는 회백색")
+        signals.append("흰색 변, 회백색 변, 창백한 변, 무담즙변")
     signal_text = ", ".join(signals) if signals else "뚜렷한 색상 위험 신호 없음"
     return (
         f"생후 {request.baby_age_months}개월 영아의 변 관찰 안내. "

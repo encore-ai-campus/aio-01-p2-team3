@@ -84,6 +84,33 @@ def test_search_query_contains_observation_and_age() -> None:
     assert "loose" in query
 
 
+def test_white_stool_query_contains_medical_document_terms() -> None:
+    observation = make_observation().model_copy(
+        update={"color": "white", "pale_or_white_appearance": True}
+    )
+    request = make_request().model_copy(update={"baby_age_months": 0})
+
+    query = build_stool_search_query(observation, request)
+
+    assert "생후 0개월" in query
+    assert "흰색 변" in query
+    assert "회백색 변" in query
+    assert "창백한 변" in query
+    assert "무담즙변" in query
+
+
+def test_black_stool_query_contains_black_stool_terms() -> None:
+    observation = make_observation().model_copy(
+        update={"color": "black", "black_tarry_appearance": True}
+    )
+
+    query = build_stool_search_query(observation, make_request())
+
+    assert "검은 변" in query
+    assert "타르 같은 변" in query
+    assert "흑색변" in query
+
+
 def test_repository_uses_fixed_stool_and_age_filters() -> None:
     captured = {}
 

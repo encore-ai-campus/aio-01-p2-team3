@@ -75,6 +75,7 @@
 - 사진만으로 `emergency`를 판정하지 않으며 전신 상태 확인은 후속 단계에서 연동
 - 발열·배변 횟수 등 입력이 없으면 필요한 추가 질문 반환
 - `nomic-embed-text` 768차원 Query 임베딩과 pgvector로 `category='stool'`만 조회
+- 흰색·회백색 신호는 `창백한 변`, `무담즙변` 용어를 포함해 공식 문서를 검색
 - RAG 결과가 없으면 정상적으로 `sources=[]` 반환
 - RAG 장애 시 분석은 유지하고 `RAG_SERVICE_ERROR` 경고 반환
 - 공용 업로드 루트 기준 `temporary/{uuid}.jpg` 상대경로 지원
