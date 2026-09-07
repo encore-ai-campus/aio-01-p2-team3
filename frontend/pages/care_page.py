@@ -105,7 +105,7 @@ def render() -> None:
         """,
         unsafe_allow_html=True,
     )
-    rows=''.join(f"<div class='r'><span>{x['time']}</span><b>{x['icon']}　{x['title']}</b><small>{x['detail']}</small><i><a class='edit-record' href='?demo=1&amp;page=%EC%9C%A1%EC%95%84%20%EA%B4%80%EB%A6%AC&amp;edit_record={index}' aria-label='{x['title']} 수정'>✎</a></i></div>" for index, x in enumerate(records))
+    rows=''.join(f"<div class='r'><span>{x['time']}</span><b>{x['icon']}　{x['title']}</b><small>{x['detail']}</small><i><a class='edit-record' target='_self' href='?demo=1&amp;page=%EC%9C%A1%EC%95%84%20%EA%B4%80%EB%A6%AC&amp;edit_record={index}' aria-label='{x['title']} 수정'>✎</a></i></div>" for index, x in enumerate(records))
     st.markdown("<style>.filter{display:none!important}</style>", unsafe_allow_html=True)
     st.markdown("<style>.edit-record,.edit-record:link,.edit-record:visited{text-decoration:none!important;color:#778198;font-size:18px}.edit-record:hover{color:#6374DC}</style>", unsafe_allow_html=True)
     st.markdown("<style>@media(max-width:700px){.cardx .r{grid-template-columns:96px minmax(0,1fr) 32px!important;grid-template-rows:auto auto;column-gap:8px;row-gap:3px;padding:12px}.cardx .r>span{grid-column:1;grid-row:1 / 3;align-self:center;font-size:13px}.cardx .r>b{grid-column:2;grid-row:1;margin:0;font-size:15px;line-height:1.35}.cardx .r>small{grid-column:2;grid-row:2;margin:0;font-size:13px;line-height:1.4}.cardx .r>i{grid-column:3;grid-row:1 / 3;align-self:center;text-align:center}}</style>", unsafe_allow_html=True)

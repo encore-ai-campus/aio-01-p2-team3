@@ -27,8 +27,11 @@ if not st.session_state.logged_in:
     st.markdown(
         """
         <style>
-        [data-testid="stSidebar"] { display: none; }
-        [data-testid="stSidebarCollapsedControl"] { display: none; }
+        [data-testid="stSidebar"],
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stExpandSidebarButton"],
+        [data-testid="collapsedControl"],
+        header { display: none !important; }
         </style>
         """,
         unsafe_allow_html=True,

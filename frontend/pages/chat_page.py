@@ -24,13 +24,13 @@ def render() -> None:
     if topic in topic_questions and st.session_state.applied_chat_topic != topic:
         _send(topic_questions[topic])
         st.session_state.applied_chat_topic = topic
-    st.markdown(f"<div class='page-title'>{baby['baby_name']}의 AI 육아 도우미</div><div class='page-subtitle'>생후 {baby['age_days']}일 · {baby['current_weight_kg']}kg · {baby['feeding_type']} 수유&nbsp;&nbsp; <span style='color:#20A26B'>● 아기 정보를 반영하고 있어요</span></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='page-title'>{baby['baby_name']}의 AI 육아 도우미</div><div class='page-subtitle' style='margin-bottom:.25rem'>생후 {baby['age_days']}일 · {baby['current_weight_kg']}kg · {baby['feeding_type']} 수유</div><div style='color:#20A26B;font-size:.82rem;margin-bottom:.8rem'>● 아기 정보를 반영하고 있어요</div>", unsafe_allow_html=True)
     render_feeding_reminder({})
 
     st.markdown("<br>", unsafe_allow_html=True)
     with st.container(border=True):
         # 고정 높이 영역으로 메시지가 길어져도 하단 정보 카드가 밀리지 않게 합니다.
-        with st.container(height=255):
+        with st.container(height=400):
             if not st.session_state.chat_messages:
                 st.markdown("<div class='chat-ai'>안녕하세요! 서아는 오늘 생후 30일이에요. 수유·수면·배변을 간단히 기록하거나, 월령에 맞는 육아 정보를 물어보세요.</div>", unsafe_allow_html=True)
                 st.markdown("<div class='chat-user'>생후 30일 아기는 분유를 얼마나 먹나요?</div>", unsafe_allow_html=True)
@@ -65,7 +65,11 @@ def render() -> None:
         with st.container(border=True):
             st.markdown("<div class='section-title'>AI가 참고 중인 정보</div>", unsafe_allow_html=True)
             rows = [("월령", f"생후 {baby['age_days']}일"), ("몸무게", f"{baby['current_weight_kg']}kg"), ("수유 방식", baby["feeding_type"]), ("특이사항", f"{', '.join(baby['allergies'])} 알레르기")]
-            for label, value in rows:
-                label_col, value_col = st.columns([1, 1])
-                label_col.caption(label)
-                value_col.markdown(f"<div style='text-align:right;font-size:.82rem;font-weight:700'>{value}</div>", unsafe_allow_html=True)
+            info_rows = "".join(
+                f"<div class='ai-reference-row'><span>{label}</span><b>{value}</b></div>"
+                for label, value in rows
+            )
+            st.markdown(
+                f"<style>.ai-reference-row{{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:.5rem 0;color:#778198;font-size:.88rem}}.ai-reference-row b{{color:#202737;text-align:right;font-size:.88rem;white-space:nowrap}}</style>{info_rows}",
+                unsafe_allow_html=True,
+            )
