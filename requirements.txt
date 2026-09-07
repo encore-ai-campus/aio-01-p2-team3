@@ -14,6 +14,7 @@ pgvector
 redis
 openai
 Pillow
+PyYAML
 mcp
 fastmcp
 pytest
