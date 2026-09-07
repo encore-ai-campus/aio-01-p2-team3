@@ -9,7 +9,9 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Any
+from uuid import uuid4
 
 import requests
 
@@ -30,6 +32,7 @@ def request_backend(
     *,
     params: dict[str, Any] | None = None,
     json: dict[str, Any] | None = None,
+    data: dict[str, Any] | None = None,
     files: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
@@ -44,6 +47,7 @@ def request_backend(
             url=url,
             params=params,
             json=json,
+            data=data,
             files=files,
             headers=headers,
             timeout=API_TIMEOUT_SECONDS,
@@ -160,7 +164,14 @@ def get_vaccinations(_: str) -> dict:
     }
 
 
-def send_chat(message: str) -> dict:
+def send_chat(message: str, *, baby_id: str | None = None, session_id: str | None = None) -> dict:
+    """채팅 API를 통해 Backend Agent와 RAG Tool 선택을 요청한다."""
+    if not USE_MOCK_API:
+        return request_backend(
+            "POST",
+            "/api/chat",
+            json={"message": message, "baby_id": baby_id, "session_id": session_id},
+        )
     return {
         "success": True,
         "data": {
@@ -169,3 +180,121 @@ def send_chat(message: str) -> dict:
             "sources": ["공식 육아정보 기반 · 수유 참고"],
         },
     }
+
+
+def search_hospitals(region: str, *, hospital_type: str = "pediatric") -> dict:
+    """지역명 기반 병원 검색 API를 호출한다."""
+    if USE_MOCK_API:
+        return {
+            "success": True,
+            "data": {
+                "region": region,
+                "items": [
+                    {
+                        "hospital_name": "서아소아청소년과의원",
+                        "address": f"{region} 예시로 12",
+                        "phone": "02-1234-5678",
+                        "operating_hours": "평일 09:00~18:00",
+                    }
+                ],
+                "notice": "운영시간과 진료 가능 여부는 방문 전 의료기관에 확인해 주세요.",
+            },
+        }
+    return request_backend(
+        "GET",
+        "/api/hospitals/search",
+        params={"region": region, "type": hospital_type, "page": 1, "limit": 10},
+    )
+
+
+def analyze_diaper_image(image_file: Any, *, baby_id: str, age_days: int, feeding_type: str) -> dict:
+    """기저귀 사진을 분석 API로 보내 관찰 결과와 안전 안내를 받는다."""
+    if USE_MOCK_API:
+        return {
+            "success": True,
+            "data": {
+                "is_analyzable": True,
+                "quality_issues": [],
+                "observation": {"color": "노란색", "consistency": "묽은 형태"},
+                "risk": {
+                    "level": "none",
+                    "signals": [],
+                    "recommended_action": "평소와 다른 변화가 계속되거나 걱정되면 소아과에 문의해 주세요.",
+                },
+                "sources": ["월령별 배변 관찰 참고 자료"],
+                "safety_notice": "사진만으로 질환을 진단할 수 없습니다.",
+            },
+        }
+    return request_backend(
+        "POST",
+        "/api/images/diaper-analysis",
+        data={"baby_id": baby_id, "age_days": age_days, "feeding_type": feeding_type},
+        files={"file": (getattr(image_file, "name", "diaper-image.jpg"), image_file, getattr(image_file, "type", "image/jpeg"))},
+    )
+
+
+def create_care_log(
+    baby_id: str,
+    *,
+    amount_ml: int,
+    feeding_type: str,
+    session_id: str,
+    input_source: str = "ui",
+    confirmed_by_user: bool = False,
+    idempotency_key: str | None = None,
+) -> dict:
+    """수유량 선택 결과를 육아 기록으로 저장한다.
+
+    현재는 시연 데이터를 반환하고, 실제 연결 시에는 확정된 FastAPI 계약인
+    ``POST /api/care-logs``로 동일한 필드를 전달한다.
+    """
+    feeding_type_code = {"모유": "breast", "분유": "formula", "혼합": "mixed"}.get(feeding_type, "formula")
+    payload = {
+        "baby_id": baby_id,
+        "event_type": "feeding",
+        "recorded_at": datetime.now().astimezone().isoformat(),
+        "input_source": input_source,
+        "feeding_type": feeding_type_code,
+        "amount_ml": amount_ml,
+        "idempotency_key": idempotency_key or f"{session_id}-feeding-{uuid4().hex}",
+    }
+    if input_source == "stt":
+        payload["confirmed_by_user"] = confirmed_by_user
+    if USE_MOCK_API:
+        return {
+            "success": True,
+            "message": f"{feeding_type} {amount_ml}ml를 기록했습니다.",
+            "data": {"log_id": "demo-feeding-log", **payload},
+        }
+    return request_backend("POST", "/api/care-logs", json=payload)
+
+
+def transcribe_audio(audio_file: Any, baby_id: str, session_id: str) -> dict:
+    """음성 파일을 STT API로 보내고, 사용자가 확인할 텍스트를 반환한다.
+
+    백엔드가 준비되면 ``POST /api/media/speech/transcribe`` 계약으로 연결한다.
+    현재 시연 모드에서는 녹음 결과를 바로 저장하지 않는 흐름을 확인할 수 있도록
+    예시 문장을 반환한다.
+    """
+    if USE_MOCK_API:
+        return {
+            "success": True,
+            "data": {
+                "transcript": "서아가 분유 100ml 먹었어요.",
+                "response_type": "stt_record_approval",
+                "tool_call_id": "demo-stt-feeding-001",
+                "approval_snapshot": {
+                    "event_type": "feeding",
+                    "amount_ml": 100,
+                    "feeding_type": "분유",
+                },
+                "is_demo": True,
+            },
+        }
+
+    return request_backend(
+        "POST",
+        "/api/media/speech/transcribe",
+        data={"baby_id": baby_id, "session_id": session_id},
+        files={"file": (getattr(audio_file, "name", "voice.webm"), audio_file, getattr(audio_file, "type", "audio/webm"))},
+    )
