@@ -1,12 +1,75 @@
-"""FastAPI 연결 전 화면 개발을 위한 목데이터 API 계층.
+"""Streamlit과 FastAPI 사이의 공통 API 계층.
 
-백엔드가 준비되면 각 함수의 반환부를 requests 호출로 교체한다.
-페이지 파일은 이 모듈의 함수만 호출한다.
+백엔드가 준비되기 전에는 ``USE_MOCK_API=true``로 목데이터를 사용한다.
+준비 후에는 환경변수를 false로 바꾸고, 확정된 엔드포인트별 함수가
+아래 공통 HTTP 클라이언트를 사용하도록 연결한다.
+페이지 파일은 이 모듈의 함수만 호출하며 HTTP 세부 구현을 직접 갖지 않는다.
 """
 
 from __future__ import annotations
 
-from datetime import date
+import os
+from typing import Any
+
+import requests
+
+
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000").rstrip("/")
+USE_MOCK_API = os.getenv("USE_MOCK_API", "true").lower() == "true"
+API_TIMEOUT_SECONDS = float(os.getenv("BACKEND_API_TIMEOUT_SECONDS", "10"))
+
+
+def backend_settings() -> dict[str, Any]:
+    """현재 연결 대상 정보. 화면에는 URL이나 내부 오류를 그대로 노출하지 않는다."""
+    return {"base_url": BACKEND_API_URL, "use_mock_api": USE_MOCK_API, "timeout_seconds": API_TIMEOUT_SECONDS}
+
+
+def request_backend(
+    method: str,
+    path: str,
+    *,
+    params: dict[str, Any] | None = None,
+    json: dict[str, Any] | None = None,
+    files: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """문서의 공통 응답 형식으로 FastAPI 응답과 네트워크 오류를 정규화한다.
+
+    실제 호출은 백엔드 개발 완료 후, 각 엔드포인트 함수에서 사용한다.
+    """
+    url = f"{BACKEND_API_URL}{path}"
+    try:
+        response = requests.request(
+            method=method,
+            url=url,
+            params=params,
+            json=json,
+            files=files,
+            headers=headers,
+            timeout=API_TIMEOUT_SECONDS,
+        )
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+
+        if isinstance(body, dict):
+            return {
+                "success": bool(body.get("success", response.ok)),
+                "message": body.get("message", "" if response.ok else "요청을 처리하지 못했습니다."),
+                "data": body.get("data", {}),
+                "request_id": body.get("request_id"),
+                "status_code": response.status_code,
+            }
+        return {"success": response.ok, "message": "응답 형식이 올바르지 않습니다.", "data": {}, "request_id": None, "status_code": response.status_code}
+    except requests.RequestException:
+        return {
+            "success": False,
+            "message": "서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+            "data": {},
+            "request_id": None,
+            "status_code": None,
+        }
 
 
 BABY = {
@@ -106,4 +169,3 @@ def send_chat(message: str) -> dict:
             "sources": ["공식 육아정보 기반 · 수유 참고"],
         },
     }
-

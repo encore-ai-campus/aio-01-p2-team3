@@ -1,1 +1,50 @@
-rules: []
+version: 1
+
+# 이 값은 질병 진단 기준이 아니라 추가 확인을 위한 프로젝트 운영 기준입니다.
+thresholds:
+  frequent_stool_count_24h: 8
+
+observation_rules:
+  visible_red_area:
+    level: urgent
+    signal: "사진에서 붉은 영역이 관찰되었습니다."
+    follow_up_questions:
+      - "붉은색 음식이나 약을 먹었거나 항문 주변에 상처가 있나요?"
+  black_tarry_appearance:
+    level: urgent
+    signal: "검고 타르처럼 보이는 영역이 관찰되었습니다."
+    follow_up_questions:
+      - "변이 짙은 초록색이 아니라 조명 아래에서도 검게 보이나요?"
+  pale_or_white_appearance:
+    level: urgent
+    signal: "흰색 또는 회백색으로 보이는 영역이 관찰되었습니다."
+    follow_up_questions:
+      - "같은 색의 변이 반복되었나요?"
+
+context_rules:
+  high_uncertainty:
+    level: attention
+    signal: "사진 관찰 결과의 불확실성이 높습니다."
+    follow_up_questions:
+      - "자연광이나 밝은 조명에서 변 색깔을 다시 확인해 줄 수 있나요?"
+  fever:
+    level: attention
+    signal: "보호자가 발열이 있다고 입력했습니다."
+    follow_up_questions:
+      - "측정한 체온과 측정 방법, 측정 시각을 알려주세요."
+  young_infant_fever:
+    level: urgent
+    signal: "생후 3개월 미만 아기에게 발열이 있다고 입력되었습니다."
+    follow_up_questions:
+      - "측정한 체온과 측정 방법, 측정 시각을 알려주세요."
+  frequent_stool:
+    level: attention
+    signal: "최근 24시간 배변 횟수가 {count}회로 입력되었습니다."
+    follow_up_questions:
+      - "평소보다 배변 횟수가 갑자기 늘었거나 물처럼 묽어졌나요?"
+
+actions:
+  none: "미리 정한 위험 신호는 발견되지 않았습니다. 아기의 전반적인 상태와 다음 배변을 함께 관찰하세요."
+  attention: "추가 질문을 확인하고 증상이 지속되거나 걱정되면 소아청소년과에 상담하세요."
+  urgent: "사진만으로 원인을 판단하지 말고 즉시 소아청소년과 의료진에게 연락해 확인받으세요."
+  emergency: "아기의 전신 상태가 위급하면 즉시 119 또는 응급실의 도움을 받으세요."
