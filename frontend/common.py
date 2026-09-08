@@ -34,6 +34,19 @@ def init_session() -> None:
         "pending_notice": "",
         "editing_record_index": None,
         "pending_stt_tool_call_id": None,
+        "chat_draft": "",
+        "voice_transcript": "",
+        "last_voice_audio_signature": "",
+        "pending_stt_record": None,
+        "voice_recording_counter": 0,
+        "show_feeding_amount_options": False,
+        "feeding_save_message": "",
+        "feeding_interval_minutes": 180,
+        "feeding_reminder_status": "active",
+        "feeding_snooze_until": None,
+        "show_hospital_search": False,
+        "diaper_analysis_result": None,
+        "last_diaper_signature": "",
         "request_in_progress": False,
         "quick_record_type": None,
         "quick_record_notice": "",
@@ -56,7 +69,7 @@ def restore_navigation_from_url() -> None:
     if st.session_state.last_navigation_query != query_signature:
         if page in MENU_ITEMS:
             st.session_state.selected_menu = page
-        if topic in {"feeding", "sleep", "hospital", "weaning"}:
+        if topic in {"feeding", "sleep", "hospital", "weaning", "diaper"}:
             st.session_state.chat_topic = topic
         if notice in {"snooze", "skip"}:
             st.session_state.pending_notice = notice

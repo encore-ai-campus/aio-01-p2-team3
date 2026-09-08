@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="800" viewBox="0 0 1500 800" role="img" aria-labelledby="title desc">
+  <title id="title">STT 육아 기록 사용자 승인 시퀀스</title>
+  <desc id="desc">음성 기록 입력부터 Agent의 승인 대기, Redis 검증, baby care 서버의 단 한 번 저장까지의 시퀀스다.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>
+      text { font-family:'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif; fill:#172033; }
+      .title { font-size:32px; font-weight:700; }
+      .actor { fill:#eef2ff; stroke:#8191e8; stroke-width:2; rx:16; }
+      .actor-text { font-size:19px; font-weight:700; text-anchor:middle; }
+      .life { stroke:#94a3b8; stroke-width:2; stroke-dasharray:8 8; }
+      .msg { stroke:#64748b; stroke-width:2.5; fill:none; marker-end:url(#arrow); }
+      .return { stroke:#94a3b8; stroke-width:2; stroke-dasharray:7 6; fill:none; marker-end:url(#arrow); }
+      .label { font-size:17px; font-weight:500; }
+      .note { fill:#f8faff; stroke:#c7d2fe; stroke-width:1.5; rx:10; }
+      .note-text { font-size:15px; fill:#475569; }
+      .alt { fill:#f8fafc; stroke:#cbd5e1; stroke-width:2; rx:14; }
+      .alt-title { font-size:17px; font-weight:700; fill:#4f46e5; }
+    </style>
+  </defs>
+  <rect width="1500" height="800" fill="#f8fafc"/>
+  <text x="750" y="55" class="title" text-anchor="middle">STT 육아 기록 사용자 승인 시퀀스</text>
+  <g>
+    <rect x="85" y="95" width="170" height="62" class="actor"/><text x="170" y="133" class="actor-text">보호자</text>
+    <rect x="360" y="95" width="200" height="62" class="actor"/><text x="460" y="133" class="actor-text">Frontend / FastAPI</text>
+    <rect x="675" y="95" width="180" height="62" class="actor"/><text x="765" y="133" class="actor-text">baby_care_agent</text>
+    <rect x="990" y="95" width="130" height="62" class="actor"/><text x="1055" y="133" class="actor-text">Redis</text>
+    <rect x="1240" y="95" width="180" height="62" class="actor"/><text x="1330" y="133" class="actor-text">baby_care_server</text>
+  </g>
+  <path d="M170 157 V750 M460 157 V750 M765 157 V750 M1055 157 V750 M1330 157 V750" class="life"/>
+  <path d="M170 205 H460" class="msg"/><text x="245" y="192" class="label">음성으로 육아 기록 입력</text>
+  <path d="M460 275 H765" class="msg"/><text x="525" y="262" class="label">STT 텍스트, input_source=stt</text>
+  <rect x="632" y="300" width="266" height="56" class="note"/><text x="648" y="326" class="note-text">기록 필드·소유권·정책 검증</text><text x="648" y="347" class="note-text">실제 기록일 때만 승인 절차 진행</text>
+  <path d="M765 395 H1055" class="msg"/><text x="815" y="382" class="label">pending_call·Snapshot·TTL 10분 저장</text>
+  <path d="M765 455 H460" class="return"/><text x="495" y="442" class="label">확인 카드 반환, Agent 종료</text>
+  <path d="M460 515 H170" class="return"/><text x="220" y="502" class="label">승인 또는 거절 선택</text>
+  <rect x="105" y="550" width="1280" height="178" class="alt"/>
+  <text x="128" y="580" class="alt-title">승인</text>
+  <path d="M460 615 H1055" class="msg"/><text x="625" y="602" class="label">TTL·Snapshot·소유권·중복 여부 재검증</text>
+  <path d="M460 665 H1330" class="msg"/><text x="720" y="652" class="label">Redis에 저장된 pending_call 1회 실행</text>
+  <path d="M1330 708 H460" class="return"/><text x="775" y="695" class="label">저장 결과 반환</text>
+  <text x="128" y="755" class="alt-title">거절 또는 만료: DB 변경 없이 재입력 안내 후 종료</text>
+</svg>
