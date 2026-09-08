@@ -1,13 +1,16 @@
 """Care MCP를 이용한 육아 기록 업무를 처리합니다."""
 
 from datetime import date
+import json
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.mcp_clients.baby_care_client import (
     get_care_records as get_care_records_from_mcp,
     record_care_event,
 )
-from app.schemas.care import CareLogCreateRequest, CareRecordsQuery
+from app.schemas.care import CareLogCreateRequest, CareLogUpdateRequest, CareRecordsQuery
 from app.services.baby_service import get_baby
 
 
@@ -133,3 +136,126 @@ async def get_care_pattern(
     )
 
     return get_mcp_data(result)
+
+
+async def update_care_log(
+    session: AsyncSession,
+    user_id: str,
+    log_id: str,
+    update_request: CareLogUpdateRequest,
+) -> dict:
+    """소유한 기록만 수정한다. Care Server가 소유한 테이블을 직접 갱신한다."""
+    row = (
+        await session.execute(
+            text(
+                """
+                SELECT care_logs.id AS log_id, care_logs.baby_id,
+                       care_logs.log_type AS event_type, care_logs.recorded_at,
+                       care_logs.details
+                FROM care_logs
+                JOIN babies ON babies.id = care_logs.baby_id
+                WHERE care_logs.id = :log_id AND babies.user_id = :user_id
+                """
+            ),
+            {"log_id": log_id, "user_id": user_id},
+        )
+    ).mappings().first()
+    if row is None:
+        raise ValueError("육아 기록을 찾을 수 없습니다.")
+
+    updates = update_request.model_dump(exclude_unset=True, exclude={"recorded_at"})
+    allowed_by_event = {
+        "feeding": {"feeding_type", "amount_ml"},
+        "sleep": {"action"},
+        "diaper": {"urine", "stool", "color", "consistency", "note"},
+        "growth": {"weight_kg", "height_cm", "head_circumference_cm"},
+    }
+    unsupported = set(updates) - allowed_by_event[row["event_type"]]
+    if unsupported:
+        raise ValueError("현재 기록 유형에 수정할 수 없는 값이 포함되어 있습니다.")
+
+    details = dict(row["details"])
+    details.update(updates)
+    event_type = row["event_type"]
+    if event_type == "feeding" and not details.get("feeding_type"):
+        raise ValueError("수유 기록에는 수유 방식이 필요합니다.")
+    if event_type == "sleep" and not details.get("action"):
+        raise ValueError("수면 기록에는 시작 또는 종료가 필요합니다.")
+    if event_type == "diaper" and not details.get("urine") and not details.get("stool"):
+        raise ValueError("기저귀 기록에는 소변 또는 대변을 선택해 주세요.")
+    if event_type == "growth" and not any(
+        details.get(key) is not None
+        for key in ("weight_kg", "height_cm", "head_circumference_cm")
+    ):
+        raise ValueError("성장 기록에는 수치 하나 이상이 필요합니다.")
+
+    updated = (
+        await session.execute(
+            text(
+                """
+                UPDATE care_logs
+                SET recorded_at = COALESCE(:recorded_at, recorded_at),
+                    details = CAST(:details AS jsonb), updated_at = NOW()
+                WHERE id = :log_id
+                RETURNING id AS log_id, baby_id, log_type AS event_type,
+                          recorded_at, details, updated_at
+                """
+            ),
+            {
+                "log_id": log_id,
+                "recorded_at": update_request.recorded_at,
+                "details": json.dumps(details),
+            },
+        )
+    ).mappings().one()
+    await session.commit()
+    return dict(updated)
+
+
+async def delete_care_log(
+    session: AsyncSession,
+    user_id: str,
+    log_id: str,
+) -> None:
+    """로그인한 보호자가 소유한 육아 기록만 삭제한다."""
+    deleted = (
+        await session.execute(
+            text(
+                """
+                DELETE FROM care_logs
+                USING babies
+                WHERE care_logs.id = :log_id
+                  AND babies.id = care_logs.baby_id
+                  AND babies.user_id = :user_id
+                RETURNING care_logs.id
+                """
+            ),
+            {"log_id": log_id, "user_id": user_id},
+        )
+    ).scalar_one_or_none()
+    if deleted is None:
+        raise ValueError("육아 기록을 찾을 수 없습니다.")
+    await session.commit()
+
+
+async def get_growth_records(
+    session: AsyncSession,
+    user_id: str,
+    baby_id: str,
+) -> tuple[object, list[dict]]:
+    """Care Server의 전체 기간 기록 중 성장 기록만 반환한다."""
+    baby = await get_baby(session, user_id, baby_id)
+    result = await get_care_records_from_mcp(
+        {
+            "baby_id": baby_id,
+            "query_type": "range",
+            "start_date": baby.birth_date.isoformat(),
+            "end_date": date.today().isoformat(),
+        }
+    )
+    data = get_mcp_data(result)
+    records = [
+        record for record in data.get("records", [])
+        if record.get("event_type") == "growth"
+    ]
+    return baby, records

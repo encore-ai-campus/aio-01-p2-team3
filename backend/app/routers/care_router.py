@@ -1,5 +1,8 @@
 """수유 알림 설정 API를 제공합니다."""
 
+import json
+from datetime import date
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -7,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.care import (
     CareLogCreateRequest,
+    CareLogUpdateRequest,
     CareRecordsQuery,
     FeedingReminderResponse,
     ReminderActionRequest,
@@ -16,8 +20,11 @@ from app.schemas.care import (
 from app.services.auth_service import get_login_session
 from app.services.care.care_log_service import (
     create_care_log,
+    delete_care_log,
     get_care_logs,
     get_care_pattern,
+    get_growth_records,
+    update_care_log,
 )
 from app.services.care.reminder_service import (
     change_reminder_action,
@@ -258,4 +265,70 @@ async def get_care_pattern_api(
     return create_care_success_response(
         "최근 생활 패턴을 조회했습니다.",
         data,
+    )
+
+
+@router.patch("/care-logs/{log_id}")
+async def update_care_log_api(
+    log_id: str,
+    update_request: CareLogUpdateRequest,
+    user_id: str = Depends(get_authenticated_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """확인받은 육아 기록을 수정합니다."""
+    try:
+        data = await update_care_log(session, user_id, log_id, update_request)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=404 if "찾을 수 없습니다" in str(error) else 400,
+            detail=str(error),
+        ) from error
+    return create_care_success_response("육아 기록을 수정했습니다.", data)
+
+
+@router.delete("/care-logs/{log_id}")
+async def delete_care_log_api(
+    log_id: str,
+    user_id: str = Depends(get_authenticated_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """확인받은 육아 기록을 삭제합니다."""
+    try:
+        await delete_care_log(session, user_id, log_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return create_care_success_response("육아 기록을 삭제했습니다.", {"log_id": log_id})
+
+
+@router.get("/growth/{baby_id}")
+async def get_growth_api(
+    baby_id: str,
+    request: Request,
+    user_id: str = Depends(get_authenticated_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """성장 기록과 로컬 참고 데이터를 함께 반환합니다."""
+    try:
+        baby, records = await get_growth_records(session, user_id, baby_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail="Care MCP 서버 연결 또는 응답 처리에 실패했습니다.") from error
+
+    reference_path = Path(__file__).resolve().parents[2] / "data" / "growth_reference.json"
+    try:
+        reference_data = json.loads(reference_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        reference_data = {}
+    age_months = max(0, (date.today() - baby.birth_date).days // 30)
+    reference = reference_data.get(baby.gender, {}).get(str(age_months))
+    return create_care_success_response(
+        "성장 기록을 조회했습니다.",
+        {
+            "baby_id": baby_id,
+            "age_months": age_months,
+            "records": records,
+            "reference": reference,
+            "reference_notice": "참고값은 진단이나 정상·비정상 판정에 사용하지 않습니다.",
+        },
     )

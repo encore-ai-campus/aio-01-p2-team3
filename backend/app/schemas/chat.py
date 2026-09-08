@@ -9,7 +9,9 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=2, max_length=2000)
     baby_id: str = Field(min_length=1, max_length=100)
     session_id: str = Field(min_length=1, max_length=100)
-    user_id: str = Field(min_length=1, max_length=100)
+    # 사용자 식별은 X-User-Id 헤더가 기준이다. 과거 클라이언트의 본문 값은
+    # 호환을 위해 허용하되 라우터에서 신뢰하지 않는다.
+    user_id: str | None = Field(default=None, min_length=1, max_length=100)
 
 class ChatSource(BaseModel):
     document_id: str

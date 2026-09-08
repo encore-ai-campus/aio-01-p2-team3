@@ -55,6 +55,33 @@ class CareLogCreateRequest(BaseModel):
         return self
 
 
+class CareLogUpdateRequest(BaseModel):
+    """기존 육아 기록의 수정 가능한 값입니다.
+
+    이벤트 유형은 변경하지 않습니다. 기록 유형을 바꾸는 것은 기존 기록을
+    삭제하고 새 idempotency_key로 다시 저장하는 방식으로만 허용합니다.
+    """
+
+    recorded_at: datetime | None = None
+    feeding_type: Literal["breast", "formula", "mixed"] | None = None
+    amount_ml: int | None = Field(default=None, ge=0, le=500)
+    action: Literal["start", "end"] | None = None
+    urine: bool | None = None
+    stool: bool | None = None
+    color: str | None = Field(default=None, max_length=50)
+    consistency: str | None = Field(default=None, max_length=50)
+    note: str | None = Field(default=None, max_length=500)
+    weight_kg: float | None = Field(default=None, gt=0, le=50)
+    height_cm: float | None = Field(default=None, gt=0, le=150)
+    head_circumference_cm: float | None = Field(default=None, gt=0, le=100)
+
+    @model_validator(mode="after")
+    def require_update_value(self):
+        if not self.model_fields_set:
+            raise ValueError("수정할 값을 하나 이상 입력해 주세요.")
+        return self
+
+
 class CareRecordResponse(BaseModel):
     """Care MCP가 반환한 육아 기록 결과입니다."""
 
