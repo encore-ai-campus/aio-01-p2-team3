@@ -443,6 +443,9 @@ def render() -> None:
             "[data-testid='stHorizontalBlock']:has(.st-key-chat_send_message)>[data-testid='stColumn']{min-width:0!important}"
             "[data-testid='stHorizontalBlock']:has(.st-key-chat_send_message)>[data-testid='stColumn']:first-child{flex:0 0 100%!important;width:100%!important}"
             "[data-testid='stHorizontalBlock']:has(.st-key-chat_send_message)>[data-testid='stColumn']:nth-child(2),[data-testid='stHorizontalBlock']:has(.st-key-chat_send_message)>[data-testid='stColumn']:nth-child(3){flex:1 1 0!important;width:calc(50% - .3rem)!important}"
+            ".st-key-voice_recorder_row{margin:0!important;height:0!important;position:relative!important;z-index:3!important;pointer-events:none}"
+            ".st-key-voice_recorder_row button{position:absolute!important;top:-56px!important;left:0!important;width:calc(50% - .3rem)!important;pointer-events:auto!important}"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){margin-top:-48px!important}"
             "}"
             "</style>",
             unsafe_allow_html=True,

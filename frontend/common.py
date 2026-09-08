@@ -123,8 +123,8 @@ def apply_style() -> None:
         }
         .block-container, [data-testid="stMainBlockContainer"] { max-width: 1080px !important; padding: 1.6rem 1.35rem 2rem; margin: 0 auto; }
         [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E3E7F1;
-            min-width: 230px !important; max-width: 230px !important; }
-        [data-testid="stSidebar"] > div:first-child { min-width: 230px !important; max-width: 230px !important; }
+            min-width: 200px !important; max-width: 200px !important; }
+        [data-testid="stSidebar"] > div:first-child { min-width: 200px !important; max-width: 200px !important; }
         [data-testid="stSidebar"] > div:first-child { padding-top: 1.1rem; }
         /* pages/ 폴더에서 Streamlit이 자동 생성하는 메뉴는 사용하지 않습니다. */
         [data-testid="stSidebarNav"] { display: none; }
