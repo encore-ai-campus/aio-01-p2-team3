@@ -381,7 +381,9 @@ def stream_hospital_search(
             params={"region": region, "type": hospital_type, "page": 1, "limit": 10},
             headers={"X-User-Id": user_id, "X-Session-Id": session_id},
             stream=True,
-            timeout=API_TIMEOUT_SECONDS,
+            # 소아과 공공데이터는 제공자 리다이렉트·전문과 조회로 최대 20초가 걸릴 수 있다.
+            # 일반 채팅의 짧은 제한을 그대로 쓰면 결과가 도착하기 전에 연결 오류가 된다.
+            timeout=max(API_TIMEOUT_SECONDS, 35),
         )
         if not response.ok:
             try:
