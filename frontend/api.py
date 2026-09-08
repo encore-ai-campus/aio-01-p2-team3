@@ -358,6 +358,59 @@ def stream_chat(message: str, *, baby_id: str | None, session_id: str | None, us
         yield {"event": "error", "data": {"message": "서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."}}
 
 
+def stream_hospital_search(
+    region: str,
+    *,
+    hospital_type: str,
+    user_id: str,
+    session_id: str,
+):
+    """Yield hospital-search progress events from the SSE endpoint."""
+    if USE_MOCK_API:
+        yield {"event": "completed", "data": search_hospitals(
+            region,
+            hospital_type=hospital_type,
+            user_id=user_id,
+            session_id=session_id,
+        )}
+        return
+
+    try:
+        response = requests.get(
+            f"{BACKEND_API_URL}/api/hospitals/search/stream",
+            params={"region": region, "type": hospital_type, "page": 1, "limit": 10},
+            headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+            stream=True,
+            timeout=API_TIMEOUT_SECONDS,
+        )
+        if not response.ok:
+            try:
+                body = response.json()
+                message_text = body.get("detail") or "병원 검색을 처리하지 못했습니다."
+            except ValueError:
+                message_text = "병원 검색을 처리하지 못했습니다."
+            yield {"event": "error", "data": {"message": message_text}}
+            return
+
+        event_name = "message"
+        event_data: dict[str, Any] = {}
+        for raw_line in response.iter_lines(chunk_size=1, decode_unicode=True):
+            line = raw_line.strip() if raw_line else ""
+            if line.startswith("event:"):
+                event_name = line.removeprefix("event:").strip()
+            elif line.startswith("data:"):
+                try:
+                    event_data = json.loads(line.removeprefix("data:").strip())
+                except json.JSONDecodeError:
+                    event_data = {"message": "스트리밍 응답 형식이 올바르지 않습니다."}
+            elif not line:
+                if event_data:
+                    yield {"event": event_name, "data": event_data}
+                event_name, event_data = "message", {}
+    except requests.RequestException:
+        yield {"event": "error", "data": {"message": "병원 검색 서버에 연결할 수 없습니다."}}
+
+
 def search_hospitals(
     region: str,
     *,

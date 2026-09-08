@@ -210,7 +210,7 @@ def render_sidebar() -> str:
     with st.sidebar:
         st.markdown('<div class="brand">🫧&nbsp; Baby Care</div>', unsafe_allow_html=True)
         menu_items = ["홈", "AI 육아 도우미", "육아 관리", "내 정보"]
-        icons = {"홈": "⌂", "AI 육아 도우미": "◌", "육아 관리": "▥", "내 정보": "♙"}
+        icons = {"홈": "🏠", "AI 육아 도우미": "🤖", "육아 관리": "🍼", "내 정보": "👤"}
         for item in menu_items:
             if st.button(
                 f"{icons[item]}  {item}",

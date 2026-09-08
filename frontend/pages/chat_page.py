@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 import api
 
@@ -187,6 +186,57 @@ def _send_draft() -> None:
         st.session_state.chat_draft = ""
 
 
+def _format_hospital_message(region: str, data: dict) -> str:
+    items = data.get("items", data.get("data", []))
+    if not items:
+        return f"{region}에서 검색된 소아과가 없어요. 지역명을 다시 확인해 주세요."
+    first = items[0]
+    return (
+        f"{first.get('hospital_name', '소아과')}\n"
+        f"{first.get('address', '')}\n"
+        f"{first.get('phone', '전화번호 확인 필요')}\n"
+        f"{data.get('notice', '방문 전 진료 가능 여부를 확인해 주세요.')}"
+    )
+
+
+def _search_hospitals_with_sse(region: str) -> dict:
+    """Show one changing SSE phase while the hospital search runs."""
+    labels = {
+        "received": "검색 요청을 확인하고 있어요.",
+        "validating_region": "입력한 지역을 확인하고 있어요.",
+        "searching_hospitals": "주변 소아과를 검색하고 있어요.",
+        "formatting_result": "검색 결과를 정리하고 있어요.",
+    }
+    result: dict = {"success": False, "message": "소아과 검색을 처리하지 못했습니다."}
+    last_label = None
+    with st.status("소아과 검색을 준비하고 있어요.", expanded=False) as status:
+        for event in api.stream_hospital_search(
+            region,
+            hospital_type="pediatric",
+            user_id=st.session_state.user_id,
+            session_id=st.session_state.session_id,
+        ):
+            event_name = event["event"]
+            data = event["data"]
+            if event_name in labels:
+                label = labels[event_name]
+                if label != last_label:
+                    status.update(label=label, expanded=False)
+                    last_label = label
+                    time.sleep(0.8)
+            elif event_name == "completed":
+                result = data.get("result", data)
+                status.update(
+                    label="검색 결과를 준비했어요." if result.get("success") else "검색하지 못했어요.",
+                    state="complete" if result.get("success") else "error",
+                    expanded=False,
+                )
+            elif event_name == "error":
+                result = {"success": False, "message": data.get("message", result["message"])}
+                status.update(label="검색하지 못했어요.", state="error", expanded=False)
+    return result
+
+
 def render() -> None:
     baby = api.get_baby(st.session_state.baby_id, user_id=st.session_state.user_id, session_id=st.session_state.session_id)["data"]
     st.session_state.setdefault("show_diaper_capture", False)
@@ -209,25 +259,6 @@ def render() -> None:
     st.markdown(f"<div class='page-title'>{baby['baby_name']}의 AI 육아 도우미</div><div class='page-subtitle' style='margin-bottom:.25rem'>생후 {baby['age_days']}일 · {baby['current_weight_kg']}kg · {baby['feeding_type']} 수유</div><div style='color:#20A26B;font-size:.82rem;margin-bottom:.8rem'>● 아기 정보를 반영하고 있어요</div>", unsafe_allow_html=True)
     _render_chat_feeding_reminder(baby)
 
-    st.markdown("<div id='assistant-chat-start'></div>", unsafe_allow_html=True)
-    scroll_requests_left = st.session_state.get("scroll_to_chat", 0)
-    if scroll_requests_left:
-        # Streamlit keeps the browser's scroll position after reruns.  Scroll
-        # topic-triggered answers into view so the user can see SSE progress.
-        components.html(
-            """
-            <script>
-            window.setTimeout(() => {
-              const target = window.parent.document.getElementById('assistant-chat-start');
-              if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
-            }, 250);
-            </script>
-            """,
-            height=0,
-        )
-        # _send() triggers one more rerun after the answer is appended. Keep
-        # one scroll request for that rerun as well.
-        st.session_state.scroll_to_chat = scroll_requests_left - 1
     with st.container(border=True):
         # 고정 높이 영역으로 메시지가 길어져도 하단 정보 카드가 밀리지 않게 합니다.
         with st.container(height=400):
@@ -301,27 +332,11 @@ def render() -> None:
                     if not region:
                         st.warning("검색할 지역을 입력해 주세요.")
                     else:
-                        result = api.search_hospitals(
-                            region,
-                            hospital_type="pediatric",
-                            user_id=st.session_state.user_id,
-                            session_id=st.session_state.session_id,
-                        )
+                        result = _search_hospitals_with_sse(region)
                         if result["success"]:
                             data = result["data"]
-                            items = data.get("items", data.get("data", []))
-                            if items:
-                                first = items[0]
-                                message = (
-                                    f"{first.get('hospital_name', '소아과')}\n"
-                                    f"{first.get('address', '')}\n"
-                                    f"{first.get('phone', '전화번호 확인 필요')}\n"
-                                    f"{data.get('notice', '방문 전 진료 가능 여부를 확인해 주세요.')}"
-                                )
-                            else:
-                                message = f"{region}에서 검색된 소아과가 없어요. 지역명을 다시 확인해 주세요."
                             st.session_state.chat_messages.append(("user", f"{region} 주변 소아과를 찾아줘"))
-                            st.session_state.chat_messages.append(("ai", message))
+                            st.session_state.chat_messages.append(("ai", _format_hospital_message(region, data)))
                             st.session_state.show_hospital_search = False
                             st.rerun()
                         else:
@@ -351,7 +366,6 @@ def render() -> None:
             if column.button(label, key=f"topic_{topic_name}", use_container_width=True):
                 st.session_state.chat_topic = topic_name
                 st.session_state.applied_chat_topic = ""
-                st.session_state.scroll_to_chat = 2
                 st.rerun()
 
         if st.session_state.show_diaper_capture:
