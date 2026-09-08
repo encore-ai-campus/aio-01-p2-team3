@@ -201,13 +201,14 @@ def _format_hospital_message(region: str, data: dict) -> str:
     items = data.get("items", data.get("data", []))
     if not items:
         return f"{region}에서 검색된 소아과가 없어요. 지역명을 다시 확인해 주세요."
-    first = items[0]
-    return (
-        f"{first.get('hospital_name', '소아과')}\n"
-        f"{first.get('address', '')}\n"
-        f"{first.get('phone', '전화번호 확인 필요')}\n"
-        f"{data.get('notice', '방문 전 진료 가능 여부를 확인해 주세요.')}"
-    )
+    hospitals = []
+    for index, hospital in enumerate(items[:3], start=1):
+        name = escape(str(hospital.get("hospital_name", "소아과")))
+        address = escape(str(hospital.get("address", "주소 확인 필요")))
+        phone = escape(str(hospital.get("phone") or "전화번호 확인 필요"))
+        hospitals.append(f"<b>{index}. {name}</b><br>{address}<br>{phone}")
+    notice = escape(str(data.get("notice", "방문 전 진료 가능 여부를 확인해 주세요.")))
+    return "<br><br>".join(hospitals) + f"<br><br><span class='muted'>{notice}</span>"
 
 
 def _search_hospitals_with_sse(region: str) -> dict:

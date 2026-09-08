@@ -9,6 +9,7 @@ from app.models.baby import Baby
 from app.repositories.vaccination_repository import load_schedule
 from app.services.care.growth_service import build_growth_information
 from app.services.agent import agent_service
+from app.routers.auth_router import is_corrupted_demo_name
 from app.services.info.vaccination_service import get_vaccinations
 
 
@@ -20,6 +21,13 @@ def test_success_response_has_the_frontend_contract():
         "data": {"id": "sample"},
         "request_id": "request-1",
     }
+
+
+def test_only_damaged_demo_names_are_repaired():
+    assert is_corrupted_demo_name("????????")
+    assert is_corrupted_demo_name("����")
+    assert not is_corrupted_demo_name("서아")
+    assert not is_corrupted_demo_name("김 보호자")
 
 
 def test_local_vaccination_schedule_is_valid_and_used():
