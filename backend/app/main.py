@@ -14,6 +14,9 @@ from app.core.config import POSTGRES_DSN, REDIS_URL
 from app.routers.auth_router import router as auth_router
 
 from app.models.baby import Base
+# Importing the model registers care_logs on the shared SQLAlchemy metadata.
+# Base.metadata.create_all() below can then create it on a fresh local DB.
+from app.models.care_log import CareLog
 from app.models.reminder import ReminderSetting
 from app.models.user_memory import UserMemory
 from app.routers.baby_router import router as baby_router
