@@ -347,7 +347,7 @@ def render() -> None:
                 st.markdown("<div class='chat-ai'><b>주변 소아과를 찾아드릴게요.</b><br>검색할 지역을 입력해 주세요.</div>", unsafe_allow_html=True)
                 hospital_region = st.text_input(
                     "소아과 검색 지역",
-                    placeholder="예: 서울특별시 동작구",
+                    placeholder="예: 서울특별시, 동작구, 신대방동",
                     key="hospital_search_region",
                     label_visibility="collapsed",
                 )
