@@ -314,7 +314,7 @@ page=1
 limit=10
 ```
 
-**백엔드 확정 필요:** 병원 종류 파라미터의 실제 이름(`type` 등). 문서상 `pediatric`/`emergency`에 따라 Tool을 선택하는 규칙만 확정되어 있습니다.
+구현 확정: 병원 종류 파라미터 이름은 `type`이며 `pediatric`/`emergency`만 허용합니다. FastAPI는 각각 `search_pediatric_hospitals`/`search_emergency_hospitals` MCP Tool을 호출합니다.
 
 소아과 결과:
 
@@ -328,6 +328,8 @@ limit=10
 ```
 
 응급실 결과는 `operating_hours` 대신 `emergency_level`을 포함할 수 있습니다. `phone`, 운영시간, 응급 등급은 `null`일 수 있으므로 빈 문자열을 강제하지 않습니다. 결과 없음은 오류가 아니며 빈 목록으로 표시합니다.
+
+구현 응답 `data`에는 `region`, `type`, `data`, `source`, `checked_at`, `notice`가 포함됩니다. 공공데이터 API 키 또는 URL이 설정되지 않았거나 MCP 연결에 실패하면 성공 목록을 지어내지 않고 503으로 응답합니다.
 
 ### 기저귀 사진 분석
 

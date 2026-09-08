@@ -13,6 +13,7 @@ from app.core.config import BABY_CARE_MCP_URL
 ALLOWED_TOOLS = frozenset({
     "record_care_event",
     "get_care_records",
+    "analyze_infant_stool",
 })
 
 
@@ -96,3 +97,8 @@ async def get_care_records(
         "get_care_records",
         arguments,
     )
+
+
+async def analyze_infant_stool(arguments: dict[str, Any]) -> dict[str, Any]:
+    """기저귀 사진 고정 Workflow를 호출합니다."""
+    return await call_baby_care_tool("analyze_infant_stool", arguments)

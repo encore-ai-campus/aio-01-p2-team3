@@ -35,6 +35,8 @@ def init_session() -> None:
         "editing_record_index": None,
         "pending_stt_tool_call_id": None,
         "request_in_progress": False,
+        "quick_record_type": None,
+        "quick_record_notice": "",
         "navigation_restored": False,
     }
     for key, value in defaults.items():
