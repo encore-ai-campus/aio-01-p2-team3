@@ -178,12 +178,14 @@ def _send(message: str, progress_slot) -> None:
     st.session_state.chat_messages.append(("ai", answer_text or "답변을 준비하지 못했습니다."))
 
 
-def _send_draft() -> None:
-    """Queue the widget value before Streamlit redraws the page."""
-    draft = st.session_state.chat_draft.strip()
+def _send_draft(widget_key: str) -> None:
+    """Queue and clear the draft inside the widget callback."""
+    draft = str(st.session_state.get(widget_key, "")).strip()
     if draft:
         st.session_state.pending_chat_message = draft
-        st.session_state.chat_draft = ""
+    # Widget state may only be changed safely from its callback. Clearing it
+    # here prevents the next rerun from replaying the previous Enter event.
+    st.session_state[widget_key] = ""
 
 
 def _format_hospital_message(region: str, data: dict) -> str:
@@ -428,55 +430,30 @@ def render() -> None:
             "</style>",
             unsafe_allow_html=True,
         )
-        input_col, voice_col, send_col = st.columns([7, 1, 1])
-        input_col.text_input(
-            "채팅 입력",
-            key="chat_draft",
-            placeholder="육아 기록이나 궁금한 점을 입력하세요",
-            label_visibility="collapsed",
-        )
-        with voice_col:
-            with st.popover("🎙️", help="음성으로 입력", use_container_width=True):
-                st.markdown("**음성으로 말하기**")
-                st.caption("녹음한 내용은 바로 전송·저장되지 않으며, 아래에서 확인하고 수정할 수 있어요.")
-                audio_input = getattr(st, "audio_input", None)
-                if audio_input is None:
-                    st.warning("현재 Streamlit 버전에서는 음성 녹음을 지원하지 않습니다.")
-                else:
-                    audio = audio_input(
-                        "음성 녹음",
-                        key=f"chat_voice_recording_{st.session_state.voice_recording_counter}",
-                        label_visibility="collapsed",
-                    )
-                    if audio is not None:
-                        signature = f"{getattr(audio, 'name', 'voice')}:{getattr(audio, 'size', 0)}"
-                        if signature != st.session_state.last_voice_audio_signature:
-                            result = api.transcribe_audio(audio, baby["baby_id"], st.session_state.session_id)
-                            if result["success"]:
-                                data = result["data"]
-                                snapshot = data.get("approval_snapshot", {})
-                                if data.get("response_type") == "stt_record_approval" and snapshot.get("event_type") == "feeding":
-                                    st.session_state.pending_stt_record = {
-                                        "transcript": data.get("transcript", ""),
-                                        "amount_ml": int(snapshot.get("amount_ml", 0)),
-                                        "feeding_type": snapshot.get("feeding_type", baby["feeding_type"]),
-                                        "tool_call_id": data.get("tool_call_id"),
-                                        "idempotency_key": f"{st.session_state.session_id}-{data.get('tool_call_id', 'stt')}",
-                                    }
-                                else:
-                                    st.session_state.voice_transcript = data.get("transcript", "")
-                                st.session_state.last_voice_audio_signature = signature
-                                st.rerun()
-                            else:
-                                st.error(result.get("message", "음성을 텍스트로 바꾸지 못했습니다."))
-                    st.caption("녹음 후 인식된 문장이 채팅창에 표시됩니다. 내용이 맞을 때만 승인해 주세요.")
-        send_col.button(
-            "↑",
-            key="chat_send_message",
-            type="primary",
-            use_container_width=True,
-            on_click=_send_draft,
-        )
+        # A form submits only on Enter or the submit button.  Unlike a text
+        # input change callback, it cannot replay an old browser change event
+        # during a Streamlit rerun.
+        with st.form("chat_message_form", clear_on_submit=True, border=False):
+            input_col, voice_col, send_col = st.columns([7, 1, 1])
+            draft = input_col.text_input(
+                "채팅 입력",
+                key="chat_draft",
+                placeholder="육아 기록이나 궁금한 점을 입력하세요",
+                label_visibility="collapsed",
+            )
+            with voice_col:
+                with st.popover("🎙️", help="음성으로 입력", use_container_width=True):
+                    st.caption("음성 입력은 현재 준비 중입니다.")
+            submitted = send_col.form_submit_button(
+                "↑",
+                key="chat_send_message",
+                type="primary",
+                use_container_width=True,
+            )
+
+        if submitted and draft.strip():
+            st.session_state.pending_chat_message = draft.strip()
+            st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
     left, right = st.columns([1, 1.35])
