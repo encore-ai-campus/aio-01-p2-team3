@@ -139,6 +139,77 @@ def get_baby(baby_id: str, *, user_id: str | None = None, session_id: str | None
     return {"success": True, "data": fallback}
 
 
+def update_baby(
+    baby_id: str,
+    payload: dict[str, Any],
+    *,
+    user_id: str,
+    session_id: str,
+) -> dict:
+    """Save the editable baby profile through the authenticated backend API."""
+    if USE_MOCK_API:
+        updated = {**BABY, **payload, "baby_id": baby_id}
+        return {"success": True, "message": "목데이터에 아기 정보를 저장했습니다.", "data": updated}
+
+    gender_codes = {"여아": "female", "남아": "male"}
+    feeding_codes = {"모유": "breast", "분유": "formula", "혼합": "mixed"}
+    request_payload = {
+        **payload,
+        "gender": gender_codes.get(payload.get("gender"), payload.get("gender")),
+        "feeding_type": feeding_codes.get(
+            payload.get("feeding_type"), payload.get("feeding_type")
+        ),
+    }
+    return request_backend(
+        "PATCH",
+        f"/api/babies/{baby_id}",
+        json=request_payload,
+        headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+    )
+
+
+def get_feeding_reminder(
+    baby_id: str,
+    *,
+    user_id: str,
+    session_id: str,
+) -> dict:
+    """Read the saved feeding-reminder interval for the logged-in baby."""
+    if USE_MOCK_API:
+        return {
+            "success": True,
+            "message": "목 알림 설정입니다.",
+            "data": {"id": "mock-reminder", "baby_id": baby_id, "feeding_interval_minutes": 180},
+        }
+    return request_backend(
+        "GET",
+        f"/api/reminders/feeding/{baby_id}",
+        headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+    )
+
+
+def update_feeding_reminder(
+    baby_id: str,
+    interval_minutes: int,
+    *,
+    user_id: str,
+    session_id: str,
+) -> dict:
+    """Persist the feeding-reminder interval in the backend database."""
+    if USE_MOCK_API:
+        return {
+            "success": True,
+            "message": "목 알림 설정을 저장했습니다.",
+            "data": {"id": "mock-reminder", "baby_id": baby_id, "feeding_interval_minutes": interval_minutes},
+        }
+    return request_backend(
+        "PATCH",
+        f"/api/reminders/feeding/{baby_id}/settings",
+        json={"feeding_interval_minutes": interval_minutes},
+        headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+    )
+
+
 def get_dashboard(_: str) -> dict:
     return {
         "success": True,

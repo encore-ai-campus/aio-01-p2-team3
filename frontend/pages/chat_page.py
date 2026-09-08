@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 import api
 
@@ -143,8 +144,11 @@ def _send(message: str, progress_slot) -> None:
         "generating_answer": "답변을 만들고 있어요.",
     }
     answer_text = None
+    last_progress_label = None
     with progress_slot.container():
-        with st.status("AI가 요청을 확인하고 있어요.", expanded=True) as status:
+        # Keep one changing line for the current SSE phase; an expanded
+        # status widget would accumulate every previous phase as a log.
+        with st.status("AI가 요청을 확인하고 있어요.", expanded=False) as status:
             for event in api.stream_chat(
                 message,
                 baby_id=st.session_state.baby_id,
@@ -154,8 +158,13 @@ def _send(message: str, progress_slot) -> None:
                 event_name = event["event"]
                 data = event["data"]
                 if event_name in progress_labels:
-                    status.write(progress_labels[event_name])
-                    status.update(label=progress_labels[event_name])
+                    progress_label = progress_labels[event_name]
+                    if progress_label != last_progress_label:
+                        status.update(label=progress_label, expanded=False)
+                        last_progress_label = progress_label
+                        # The local MCP calls can finish within one browser
+                        # paint; leave each distinct SSE phase visible briefly.
+                        time.sleep(0.8)
                 elif event_name == "completed":
                     result = data.get("result", data)
                     if result.get("success"):
@@ -200,7 +209,25 @@ def render() -> None:
     st.markdown(f"<div class='page-title'>{baby['baby_name']}의 AI 육아 도우미</div><div class='page-subtitle' style='margin-bottom:.25rem'>생후 {baby['age_days']}일 · {baby['current_weight_kg']}kg · {baby['feeding_type']} 수유</div><div style='color:#20A26B;font-size:.82rem;margin-bottom:.8rem'>● 아기 정보를 반영하고 있어요</div>", unsafe_allow_html=True)
     _render_chat_feeding_reminder(baby)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div id='assistant-chat-start'></div>", unsafe_allow_html=True)
+    scroll_requests_left = st.session_state.get("scroll_to_chat", 0)
+    if scroll_requests_left:
+        # Streamlit keeps the browser's scroll position after reruns.  Scroll
+        # topic-triggered answers into view so the user can see SSE progress.
+        components.html(
+            """
+            <script>
+            window.setTimeout(() => {
+              const target = window.parent.document.getElementById('assistant-chat-start');
+              if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }, 250);
+            </script>
+            """,
+            height=0,
+        )
+        # _send() triggers one more rerun after the answer is appended. Keep
+        # one scroll request for that rerun as well.
+        st.session_state.scroll_to_chat = scroll_requests_left - 1
     with st.container(border=True):
         # 고정 높이 영역으로 메시지가 길어져도 하단 정보 카드가 밀리지 않게 합니다.
         with st.container(height=400):
@@ -312,6 +339,10 @@ def render() -> None:
             "border:1px solid #DFE4F1!important;border-radius:9px!important;color:#202737!important;background:#fff!important;font-size:13px!important}"
             ".st-key-topic_feeding button:hover,.st-key-topic_diaper button:hover,.st-key-topic_hospital button:hover,.st-key-topic_safety button:hover{"
             "border-color:#6374DC!important;color:#6374DC!important;background:#EEF1FF!important}"
+            "@media(max-width:700px){"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){flex-wrap:wrap!important;gap:.5rem!important}"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding)>[data-testid='stColumn']{flex:0 0 calc(50% - .25rem)!important;width:calc(50% - .25rem)!important;min-width:0!important}"
+            "}"
             "</style>",
             unsafe_allow_html=True,
         )
@@ -320,6 +351,7 @@ def render() -> None:
             if column.button(label, key=f"topic_{topic_name}", use_container_width=True):
                 st.session_state.chat_topic = topic_name
                 st.session_state.applied_chat_topic = ""
+                st.session_state.scroll_to_chat = 2
                 st.rerun()
 
         if st.session_state.show_diaper_capture:
