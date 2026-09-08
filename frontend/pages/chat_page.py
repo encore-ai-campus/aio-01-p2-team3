@@ -64,6 +64,11 @@ def _format_feeding_interval(minutes: int) -> str:
 
 def _skip_feeding_reminder() -> None:
     interval = _format_feeding_interval(st.session_state.feeding_interval_minutes)
+    # A reminder action is the newest interaction, so close any unfinished
+    # special-purpose panel that would otherwise visually appear after it.
+    st.session_state.show_hospital_search = False
+    st.session_state.show_diaper_capture = False
+    st.session_state.chat_messages.append(("user", "이번 알람은 건너뛸게요."))
     st.session_state.chat_messages.append(
         ("ai", f"이번 알람은 건너뛰겠습니다. {interval} 후에 다시 알람을 드릴게요.")
     )
@@ -72,6 +77,11 @@ def _skip_feeding_reminder() -> None:
 
 def _snooze_feeding_reminder() -> None:
     """시연에서는 10초 뒤 알림을 다시 표시한다."""
+    # Keep the latest action at the end of the conversation, rather than
+    # leaving an older hospital/photo panel below the new reminder response.
+    st.session_state.show_hospital_search = False
+    st.session_state.show_diaper_capture = False
+    st.session_state.chat_messages.append(("user", "10분 후에 다시 알려줘."))
     st.session_state.chat_messages.append(("ai", "10분 뒤에 다시 알려드릴게요."))
     st.session_state.show_feeding_amount_options = False
     st.session_state.feeding_reminder_status = "snoozed"
