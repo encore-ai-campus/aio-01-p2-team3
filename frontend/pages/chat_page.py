@@ -37,7 +37,6 @@ def _approve_stt_record(baby: dict) -> None:
         user_id=st.session_state.user_id,
     )
     if result["success"]:
-        st.session_state.chat_messages.append(("user", pending["transcript"]))
         st.session_state.chat_messages.append(("ai", result["message"]))
         st.session_state.pending_stt_record = None
     else:
@@ -76,6 +75,12 @@ def _skip_feeding_reminder() -> None:
     interval = _format_feeding_interval(st.session_state.feeding_interval_minutes)
     # A reminder action is the newest interaction, so close any unfinished
     # special-purpose panel that would otherwise visually appear after it.
+    result = api.change_feeding_reminder_action(
+        baby_id=st.session_state.baby_id, action="skip", user_id=st.session_state.user_id, session_id=st.session_state.session_id
+    )
+    if not result["success"]:
+        st.error(result.get("message", "알림 상태를 변경하지 못했습니다."))
+        return
     st.session_state.show_hospital_search = False
     st.session_state.show_diaper_capture = False
     st.session_state.chat_messages.append(("user", "이번 알람은 건너뛸게요."))
@@ -89,6 +94,12 @@ def _snooze_feeding_reminder() -> None:
     """시연에서는 10초 뒤 알림을 다시 표시한다."""
     # Keep the latest action at the end of the conversation, rather than
     # leaving an older hospital/photo panel below the new reminder response.
+    result = api.change_feeding_reminder_action(
+        baby_id=st.session_state.baby_id, action="snooze", user_id=st.session_state.user_id, session_id=st.session_state.session_id
+    )
+    if not result["success"]:
+        st.error(result.get("message", "알림 상태를 변경하지 못했습니다."))
+        return
     st.session_state.show_hospital_search = False
     st.session_state.show_diaper_capture = False
     st.session_state.chat_messages.append(("user", "10분 후에 다시 알려줘."))
@@ -156,6 +167,7 @@ def _send(message: str, progress_slot) -> None:
         "generating_answer": "답변을 만들고 있어요.",
     }
     answer_text = None
+    answer_metadata = {}
     last_progress_label = None
     with progress_slot.container():
         # Keep one changing line for the current SSE phase; an expanded
@@ -180,7 +192,8 @@ def _send(message: str, progress_slot) -> None:
                 elif event_name == "completed":
                     result = data.get("result", data)
                     if result.get("success"):
-                        answer_text = (result.get("data") or {}).get("answer", result.get("message"))
+                        answer_metadata = result.get("data") or {}
+                        answer_text = answer_metadata.get("answer", result.get("message"))
                         status.update(label="답변을 준비했어요.", state="complete", expanded=False)
                     else:
                         answer_text = result.get("message", "채팅 요청을 처리하지 못했습니다.")
@@ -188,6 +201,11 @@ def _send(message: str, progress_slot) -> None:
                 elif event_name == "error":
                     answer_text = data.get("message", "채팅 요청을 처리하지 못했습니다.")
                     status.update(label="요청을 처리하지 못했습니다.", state="error")
+    if answer_metadata.get("sources"):
+        source_labels = ", ".join(str(source.get("title", "공식 자료")) for source in answer_metadata["sources"][:3])
+        answer_text = f"{answer_text}\n\n📚 참고 자료: {source_labels}"
+    if answer_metadata.get("confidence") == "low":
+        answer_text = f"{answer_text}\n\n※ 참고용 안내이며, 근거가 충분하지 않을 수 있어요."
     st.session_state.chat_messages.append(("ai", answer_text or "답변을 준비하지 못했습니다."))
 
 
@@ -311,7 +329,6 @@ def render() -> None:
 
             pending_stt = st.session_state.pending_stt_record
             if pending_stt:
-                st.markdown(f"<div class='chat-user'>{pending_stt['transcript']}</div>", unsafe_allow_html=True)
                 st.markdown(
                     "<div class='chat-ai'><b>내용을 확인해 주세요. DB에 저장됩니다.</b><br>"
                     f"{pending_stt['feeding_type']} {pending_stt['amount_ml']}ml를 기록할까요?</div>",
@@ -324,11 +341,6 @@ def render() -> None:
                 if cancel_col.button("취소", key="cancel_stt_record", use_container_width=True):
                     _cancel_stt_record(baby)
                     st.rerun()
-
-            voice_transcript = st.session_state.voice_transcript
-            if voice_transcript:
-                st.markdown("<div class='chat-ai'>음성을 다음 문장으로 인식했어요. 아래 입력창에서 확인하거나 수정한 뒤 전송해 주세요.</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='chat-user'>{escape(voice_transcript)}</div>", unsafe_allow_html=True)
 
             if st.session_state.show_feeding_amount_options:
                 st.markdown(
@@ -356,6 +368,8 @@ def render() -> None:
                         st.rerun()
 
             if st.session_state.pending_hospital_search:
+                # The quick button is intentionally not a chat question.  It
+                # runs one predetermined local search and displays its result.
                 region = "신대방동"
                 st.session_state.pending_hospital_search = False
                 st.markdown("<div class='chat-ai'><b>주변 소아과를 찾아드릴게요.</b></div>", unsafe_allow_html=True)

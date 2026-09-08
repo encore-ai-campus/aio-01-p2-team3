@@ -104,3 +104,21 @@ async def test_general_baby_category_is_not_rejected(monkeypatch):
         category="general_baby", intent="guidance", is_medical_urgent=False
     )))
     assert await agent_service.classify_category("아기 목욕은 언제 시키면 좋아?") == "general_baby"
+
+
+@pytest.mark.parametrize(
+    ("message", "region"),
+    [
+        ("서울 소아과 찾아줘", "서울특별시"),
+        ("신대방동 소아과 알려줘", "신대방동"),
+        ("서울 신대방동 소아과 찾아줘", "서울특별시 신대방동"),
+        ("서울 동작구 소아과 찾아줘", "서울특별시 동작구"),
+        ("동작구 신대방동 소아과 찾아줘", "동작구 신대방동"),
+    ],
+)
+def test_chat_extracts_every_supported_hospital_region_form(message, region):
+    assert agent_service._extract_hospital_region(message) == region
+
+
+def test_generic_hospital_chat_request_defaults_to_pediatric_search():
+    assert agent_service._hospital_type_for_request("광진구 병원 알려줘") == "pediatric"

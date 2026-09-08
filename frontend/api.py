@@ -117,6 +117,10 @@ def get_baby(baby_id: str, *, user_id: str | None = None, session_id: str | None
         )
         if result["success"]:
             data = result["data"]
+            # The database permits optional growth fields.  Do not let a
+            # backend null replace the existing demo fallback used by the
+            # dashboard and growth chart.
+            populated_data = {key: value for key, value in data.items() if value is not None}
             birth_date = data.get("birth_date", BABY["birth_date"])
             try:
                 age_days = (date.today() - date.fromisoformat(birth_date)).days
@@ -127,7 +131,7 @@ def get_baby(baby_id: str, *, user_id: str | None = None, session_id: str | None
                 "success": True,
                 "data": {
                     **BABY,
-                    **data,
+                    **populated_data,
                     "baby_id": data.get("id", baby_id),
                     "age_days": age_days,
                     "feeding_type": feeding_labels.get(data.get("feeding_type"), data.get("feeding_type")),
@@ -206,6 +210,22 @@ def update_feeding_reminder(
         "PATCH",
         f"/api/reminders/feeding/{baby_id}/settings",
         json={"feeding_interval_minutes": interval_minutes},
+        headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+    )
+
+
+def change_feeding_reminder_action(*, baby_id: str, action: str, user_id: str, session_id: str) -> dict:
+    """Persist confirm/snooze/skip instead of changing only Streamlit state."""
+    reminder = get_feeding_reminder(baby_id, user_id=user_id, session_id=session_id)
+    reminder_id = (reminder.get("data") or {}).get("id")
+    if not reminder.get("success") or not reminder_id:
+        return {"success": False, "message": reminder.get("message", "수유 알림을 찾지 못했습니다."), "data": {}}
+    if USE_MOCK_API:
+        return {"success": True, "message": "알림 상태를 변경했습니다.", "data": {"action": action}}
+    return request_backend(
+        "PATCH",
+        f"/api/reminders/{reminder_id}",
+        json={"action": action},
         headers={"X-User-Id": user_id, "X-Session-Id": session_id},
     )
 
@@ -378,7 +398,7 @@ def stream_hospital_search(
     try:
         response = requests.get(
             f"{BACKEND_API_URL}/api/hospitals/search/stream",
-            params={"region": region, "type": hospital_type, "page": 1, "limit": 10},
+            params={"region": region, "type": hospital_type, "page": 1, "limit": 3},
             headers={"X-User-Id": user_id, "X-Session-Id": session_id},
             stream=True,
             # 소아과 공공데이터는 제공자 리다이렉트·전문과 조회로 최대 20초가 걸릴 수 있다.
@@ -432,7 +452,19 @@ def search_hospitals(
                         "address": f"{region} 예시로 12",
                         "phone": "02-1234-5678",
                         "operating_hours": "평일 09:00~18:00",
-                    }
+                    },
+                    {
+                        "hospital_name": "햇살소아청소년과의원",
+                        "address": f"{region} 예시로 28",
+                        "phone": "02-2345-6789",
+                        "operating_hours": "평일 09:00~18:30",
+                    },
+                    {
+                        "hospital_name": "튼튼소아청소년과의원",
+                        "address": f"{region} 예시로 45",
+                        "phone": "02-3456-7890",
+                        "operating_hours": "평일 09:00~19:00",
+                    },
                 ],
                 "notice": "운영시간과 진료 가능 여부는 방문 전 의료기관에 확인해 주세요.",
             },
