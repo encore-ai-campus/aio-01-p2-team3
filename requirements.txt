@@ -15,7 +15,9 @@ redis
 openai
 Pillow
 PyYAML
-mcp[cli]>=1.0,<2.0
+pypdf>=5,<7
+fonttools>=4,<5
+mcp
 fastmcp
 pytest
 pytest-asyncio
