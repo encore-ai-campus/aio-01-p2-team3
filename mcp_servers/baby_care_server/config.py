@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     rag_min_similarity: float = Field(default=0.70, ge=0, le=1)
 
     image_max_bytes: int = Field(default=10_485_760, ge=1)
-    image_temp_directory: Path = Path("uploads")
+    # FastAPI and this MCP process must resolve the same shared temp directory,
+    # regardless of each process' working directory.
+    image_temp_directory: Path = Path(__file__).resolve().parents[2] / "uploads"
     image_min_width: int = Field(default=224, ge=1)
     image_min_height: int = Field(default=224, ge=1)
     image_dark_threshold: float = Field(default=35.0, ge=0, le=255)

@@ -48,6 +48,8 @@ def init_session() -> None:
         "diaper_analysis_result": None,
         "last_diaper_signature": "",
         "request_in_progress": False,
+        "quick_record_type": None,
+        "quick_record_notice": "",
         "navigation_restored": False,
     }
     for key, value in defaults.items():
