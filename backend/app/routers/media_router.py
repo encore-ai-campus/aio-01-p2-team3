@@ -47,7 +47,13 @@ def extract_feeding(transcript: str) -> dict | None:
 
 
 @router.post("/speech/transcriptions", response_model=SttResponse)
-async def transcribe_audio(request: Request, baby_id: str, session_id: str, user_id: str, audio: UploadFile = File(...)) -> dict:
+async def transcribe_audio(
+    request: Request,
+    baby_id: str = Form(...),
+    session_id: str = Form(...),
+    user_id: str = Form(...),
+    audio: UploadFile = File(...),
+) -> dict:
     session = await current_user(request, user_id, session_id)
     if session.get("baby_id") != baby_id:
         raise HTTPException(status_code=403, detail="요청한 아기 정보에 접근할 수 없습니다.")
