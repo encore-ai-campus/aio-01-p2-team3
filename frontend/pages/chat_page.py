@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 import time
 
 import streamlit as st
@@ -28,15 +29,12 @@ def _approve_stt_record(baby: dict) -> None:
     pending = st.session_state.pending_stt_record
     if not pending:
         return
-    result = api.create_care_log(
-        baby["baby_id"],
-        amount_ml=pending["amount_ml"],
-        feeding_type=pending["feeding_type"],
+    result = api.confirm_stt_record(
+        tool_call_id=pending["tool_call_id"],
+        baby_id=baby["baby_id"],
         session_id=st.session_state.session_id,
+        request_id=pending["request_id"],
         user_id=st.session_state.user_id,
-        input_source="stt",
-        confirmed_by_user=True,
-        idempotency_key=pending["idempotency_key"],
     )
     if result["success"]:
         st.session_state.chat_messages.append(("user", pending["transcript"]))
@@ -46,7 +44,19 @@ def _approve_stt_record(baby: dict) -> None:
         st.error(result.get("message", "음성 기록을 저장하지 못했습니다."))
 
 
-def _cancel_stt_record() -> None:
+def _cancel_stt_record(baby: dict) -> None:
+    pending = st.session_state.pending_stt_record
+    if pending and not pending.get("is_demo"):
+        result = api.reject_stt_record(
+            tool_call_id=pending["tool_call_id"],
+            baby_id=baby["baby_id"],
+            session_id=st.session_state.session_id,
+            request_id=pending["request_id"],
+            user_id=st.session_state.user_id,
+        )
+        if not result["success"]:
+            st.error(result.get("message", "음성 기록을 취소하지 못했습니다."))
+            return
     st.session_state.pending_stt_record = None
     st.session_state.voice_transcript = ""
     st.session_state.last_voice_audio_signature = ""
@@ -192,13 +202,14 @@ def _format_hospital_message(region: str, data: dict) -> str:
     items = data.get("items", data.get("data", []))
     if not items:
         return f"{region}에서 검색된 소아과가 없어요. 지역명을 다시 확인해 주세요."
-    first = items[0]
-    return (
-        f"{first.get('hospital_name', '소아과')}\n"
-        f"{first.get('address', '')}\n"
-        f"{first.get('phone', '전화번호 확인 필요')}\n"
-        f"{data.get('notice', '방문 전 진료 가능 여부를 확인해 주세요.')}"
-    )
+    hospitals = []
+    for index, hospital in enumerate(items[:3], start=1):
+        name = escape(str(hospital.get("hospital_name", "소아과")))
+        address = escape(str(hospital.get("address", "주소 확인 필요")))
+        phone = escape(str(hospital.get("phone") or "전화번호 확인 필요"))
+        hospitals.append(f"<b>{index}. {name}</b><br>{address}<br>{phone}")
+    notice = escape(str(data.get("notice", "방문 전 진료 가능 여부를 확인해 주세요.")))
+    return "<br><br>".join(hospitals) + f"<br><br><span class='muted'>{notice}</span>"
 
 
 def _search_hospitals_with_sse(region: str) -> dict:
@@ -241,6 +252,13 @@ def _search_hospitals_with_sse(region: str) -> dict:
 
 def render() -> None:
     baby = api.get_baby(st.session_state.baby_id, user_id=st.session_state.user_id, session_id=st.session_state.session_id)["data"]
+    # audio_input is rendered after chat_draft. Move a completed STT result on
+    # the next rerun, before Streamlit instantiates the text input widget.
+    st.session_state.setdefault("pending_voice_draft", "")
+    pending_voice_draft = st.session_state.pending_voice_draft
+    if pending_voice_draft:
+        st.session_state.chat_draft = pending_voice_draft
+        st.session_state.pending_voice_draft = ""
     st.session_state.setdefault("show_diaper_capture", False)
     topic_questions = {
         "feeding": "생후 1개월 영아의 수유 시 유의할 점과 보호자가 확인할 신호를 알려주세요.",
@@ -293,8 +311,13 @@ def render() -> None:
                     _approve_stt_record(baby)
                     st.rerun()
                 if cancel_col.button("취소", key="cancel_stt_record", use_container_width=True):
-                    _cancel_stt_record()
+                    _cancel_stt_record(baby)
                     st.rerun()
+
+            voice_transcript = st.session_state.voice_transcript
+            if voice_transcript:
+                st.markdown("<div class='chat-ai'>음성을 다음 문장으로 인식했어요. 아래 입력창에서 확인하거나 수정한 뒤 전송해 주세요.</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='chat-user'>{escape(voice_transcript)}</div>", unsafe_allow_html=True)
 
             if st.session_state.show_feeding_amount_options:
                 st.markdown(

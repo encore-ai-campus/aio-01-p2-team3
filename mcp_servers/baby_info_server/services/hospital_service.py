@@ -22,6 +22,12 @@ SIDO_CODES = {
 PEDIATRIC_DEPARTMENT_CODE = "11"
 PEDIATRIC_BATCH_SIZE = 100
 PEDIATRIC_TIMEOUT_SECONDS = 20.0
+SEOUL_ONLY_DISTRICTS = frozenset({
+    # 강서구·중구처럼 여러 시·도에 있는 이름은 사용자의 시·도 입력이 필요하다.
+    "강남구", "강동구", "강북구", "관악구", "광진구", "구로구", "금천구",
+    "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구",
+    "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구", "종로구", "중랑구",
+})
 
 
 class ExternalApiError(RuntimeError):
@@ -59,6 +65,7 @@ class HospitalService:
         if not base_url or not api_key:
             raise ExternalApiError("공공데이터 API 설정이 필요합니다.")
 
+        region = self._normalize_region(region)
         provider_limit = max(limit, PEDIATRIC_BATCH_SIZE) if kind == "pediatric" else limit
         params = self._build_params(kind, api_key, region, page, provider_limit)
         payload = await self._request(
@@ -100,6 +107,14 @@ class HospitalService:
         }
         if kind == "emergency":
             return {**common, "Q0": province, "Q1": district, "QZ": "A", "ORD": "ADDR"}
+        if HospitalService._is_locality_only(region):
+            # 의료기관 API는 읍·면·동 명칭으로도 전용 필터를 제공한다.
+            # 같은 동 이름이 다른 시·도에 있어도 제공자 데이터로 정확히 찾는다.
+            return {
+                **common,
+                "dgsbjtCd": PEDIATRIC_DEPARTMENT_CODE,
+                "emdongNm": province,
+            }
         code = SIDO_CODES.get(province)
         return {
             **common,
@@ -111,6 +126,19 @@ class HospitalService:
     def _split_region(region: str) -> tuple[str, str]:
         parts = region.split(maxsplit=1)
         return parts[0], parts[1] if len(parts) > 1 else ""
+
+    @staticmethod
+    def _normalize_region(region: str) -> str:
+        """Accept an unambiguous Seoul district without requiring its city name."""
+        normalized = " ".join(region.split())
+        if normalized in SEOUL_ONLY_DISTRICTS:
+            return f"서울특별시 {normalized}"
+        return normalized
+
+    @staticmethod
+    def _is_locality_only(region: str) -> bool:
+        """Return true for a single 읍·면·동 input, not a province/district pair."""
+        return " " not in region and region.endswith(("동", "읍", "면"))
 
     @staticmethod
     def _filter_region(kind: HospitalKind, rows: list[dict[str, Any]], region: str) -> list[dict[str, Any]]:
