@@ -42,7 +42,9 @@ async def search_hospitals_api(
     try:
         data = await search_hospitals(type, region.strip(), page, limit)
     except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        # Info MCP가 공공데이터 설정 누락·업무 오류를 명시적으로 반환한 경우도
+        # 클라이언트가 재시도 가능한 외부 의존성 장애로 취급한다.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="병원 검색 서비스에 연결할 수 없습니다.") from exc
     return {"success": True, "message": "병원 검색 결과를 조회했습니다.", "data": HospitalSearchResponse.model_validate(data), "request_id": str(uuid4())}
