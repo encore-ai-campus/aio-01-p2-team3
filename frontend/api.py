@@ -137,6 +137,27 @@ def get_care_pattern(_: str) -> dict:
     }
 
 
+def search_hospitals(region: str, hospital_type: str, page: int = 1, limit: int = 10) -> dict[str, Any]:
+    """Search hospitals through FastAPI once ``USE_MOCK_API`` is disabled."""
+    if not USE_MOCK_API:
+        return request_backend("GET", "/api/hospitals/search", params={"region": region, "type": hospital_type, "page": page, "limit": limit})
+    return {"success": True, "message": "목데이터 검색 결과입니다.", "data": {"region": region, "type": hospital_type, "data": [], "source": "mock", "checked_at": None, "notice": "실제 병원 검색은 백엔드 연결 후 이용할 수 있습니다."}, "request_id": None, "status_code": 200}
+
+
+def analyze_diaper_image(image_file, baby_id: str, session_id: str, user_id: str, feeding_type: str, has_fever: bool | None = None, stool_count_24h: int | None = None) -> dict[str, Any]:
+    """Upload a diaper image; analysis never saves a care record automatically."""
+    if not USE_MOCK_API:
+        return request_backend("POST", "/api/images/diaper-analysis", files={"image": image_file}, data={"baby_id": baby_id, "session_id": session_id, "user_id": user_id, "feeding_type": feeding_type, "has_fever": has_fever, "stool_count_24h": stool_count_24h})
+    return {"success": True, "message": "목 분석 결과입니다.", "data": {"baby_id": baby_id, "is_analyzable": False, "quality_issues": ["실제 사진 분석은 백엔드 연결 후 이용할 수 있습니다."], "observation": None, "risk": None, "follow_up_questions": [], "sources": [], "warnings": [], "safety_notice": "사진만으로 질환을 진단할 수 없습니다."}, "request_id": None, "status_code": 200}
+
+
+def create_care_log(payload: dict[str, Any], user_id: str, session_id: str) -> dict[str, Any]:
+    """Save an explicitly entered care event through the authenticated API."""
+    if not USE_MOCK_API:
+        return request_backend("POST", "/api/care-logs", json=payload, headers={"X-User-Id": user_id, "X-Session-Id": session_id})
+    return {"success": True, "message": "목데이터에 기록했습니다.", "data": {"event_type": payload["event_type"], "duplicated": False}, "request_id": None, "status_code": 200}
+
+
 def get_growth(_: str) -> dict:
     return {
         "success": True,
