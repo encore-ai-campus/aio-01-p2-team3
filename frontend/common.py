@@ -4,6 +4,8 @@ from datetime import date
 
 import streamlit as st
 
+import api
+
 
 COLORS = {
     "primary": "#6374DC",
@@ -71,7 +73,10 @@ def restore_navigation_from_url() -> None:
     if st.session_state.last_navigation_query != query_signature:
         if page in MENU_ITEMS:
             st.session_state.selected_menu = page
-        if topic in {"feeding", "sleep", "hospital", "weaning", "diaper"}:
+        if topic == "chat":
+            st.session_state.chat_topic = ""
+            st.session_state.applied_chat_topic = ""
+        elif topic in {"feeding", "sleep", "hospital", "weaning", "diaper", "safety"}:
             st.session_state.chat_topic = topic
         if notice in {"snooze", "skip"}:
             st.session_state.pending_notice = notice
@@ -206,7 +211,7 @@ def render_sidebar() -> str:
     with st.sidebar:
         st.markdown('<div class="brand">🫧&nbsp; Baby Care</div>', unsafe_allow_html=True)
         menu_items = ["홈", "AI 육아 도우미", "육아 관리", "내 정보"]
-        icons = {"홈": "⌂", "AI 육아 도우미": "◌", "육아 관리": "▥", "내 정보": "♙"}
+        icons = {"홈": "🏠", "AI 육아 도우미": "🤖", "육아 관리": "🍼", "내 정보": "👤"}
         for item in menu_items:
             if st.button(
                 f"{icons[item]}  {item}",
@@ -218,11 +223,20 @@ def render_sidebar() -> str:
                 st.rerun()
 
         st.markdown("<br><br><br>", unsafe_allow_html=True)
+        baby_result = api.get_baby(
+            st.session_state.baby_id,
+            user_id=st.session_state.user_id,
+            session_id=st.session_state.session_id,
+        )
+        baby = baby_result.get("data", {}) if baby_result.get("success") else {}
+        baby_name = baby.get("baby_name", "아기")
+        birth_date = str(baby.get("birth_date", ""))
+        birthday_label = f"생일 {birth_date}" if birth_date else "생일 정보 없음"
         st.markdown(
             "<div class='sidebar-baby-card'>"
             "<span style='font-size:1.35rem'>👶</span> "
-            "<span class='sidebar-baby-name'>서아</span>"
-            "<div class='sidebar-baby-age'>생후 31일</div>"
+            f"<span class='sidebar-baby-name'>{baby_name}</span>"
+            f"<div class='sidebar-baby-age'>{birthday_label}</div>"
             "</div>",
             unsafe_allow_html=True,
         )

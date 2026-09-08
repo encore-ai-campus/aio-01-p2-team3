@@ -96,31 +96,10 @@ def render() -> None:
         return
     pattern = api.get_care_pattern(st.session_state.baby_id)["data"]
     vaccination = api.get_vaccinations(st.session_state.baby_id)["data"]
-    with st.expander("💩 기저귀 사진 분석", expanded=False):
-        uploaded_image = st.file_uploader("기저귀 사진", type=["jpg", "jpeg", "png"], key="diaper_image")
-        has_fever = st.checkbox("열이 있어요", key="diaper_fever")
-        stool_count = st.number_input("최근 24시간 대변 횟수", min_value=0, max_value=30, value=0, key="diaper_count")
-        if st.button("사진 분석하기", key="analyze_diaper", type="primary"):
-            if uploaded_image is None:
-                st.warning("분석할 사진을 선택해 주세요.")
-            else:
-                feeding = {"모유": "breast", "분유": "formula", "혼합": "mixed"}.get(baby["feeding_type"], "mixed")
-                response = api.analyze_diaper_image(uploaded_image, st.session_state.baby_id, st.session_state.session_id, st.session_state.user_id, feeding, has_fever, int(stool_count))
-                if response["success"]:
-                    result = response["data"]
-                    if not result["is_analyzable"]:
-                        st.info("다시 촬영해 주세요: " + " ".join(result["quality_issues"]))
-                    else:
-                        risk = result["risk"] or {}
-                        st.success("사진에서 보이는 특징을 정리했습니다.")
-                        st.json({"observation": result["observation"], "risk": risk, "follow_up_questions": result["follow_up_questions"]})
-                    st.caption(result["safety_notice"])
-                else:
-                    st.error(response["message"])
     st.markdown(
         f"""
         <style>
-        .care-ai-analysis{{background:#EEF1FF;border:1px solid #C9D2FF;border-radius:15px;padding:16px;margin:16px 0}}.care-ai-analysis-title{{font-size:17px;font-weight:800;color:#202737}}.care-ai-analysis-sub{{font-size:13px;color:#68758E;margin:4px 0 12px}}.care-ai-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}.care-ai-item{{background:#FFFFFF;border:1px solid #E3E7F1;border-radius:10px;padding:11px;font-size:13px;color:#68758E}}.care-ai-item b{{display:block;color:#202737;margin-bottom:4px}}@media(max-width:700px){{.care-ai-grid{{grid-template-columns:1fr}}}}
+        .care-ai-analysis{{background:#EEF1FF;border:1px solid #C9D2FF;border-radius:15px;padding:16px;margin:16px 0 0}}.care-ai-analysis-title{{font-size:17px;font-weight:800;color:#202737}}.care-ai-analysis-sub{{font-size:13px;color:#68758E;margin:4px 0 12px}}.care-ai-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}.care-ai-item{{background:#FFFFFF;border:1px solid #E3E7F1;border-radius:10px;padding:11px;font-size:13px;color:#68758E}}.care-ai-item b{{display:block;color:#202737;margin-bottom:4px}}@media(max-width:700px){{.care-ai-grid{{grid-template-columns:1fr}}}}
         </style>
         <div class="care-ai-analysis"><div class="care-ai-analysis-title">✨ AI 육아 분석 요약</div><div class="care-ai-analysis-sub">최근 육아 기록과 월령 정보를 함께 분석한 참고 안내예요.</div><div class="care-ai-grid"><div class="care-ai-item"><b>🍼 육아 기록</b>최근 7일 수유 47회로, 기록이 꾸준히 쌓이고 있어요.</div><div class="care-ai-item"><b>🌙 생활 패턴</b>평균 수유 간격은 {pattern['average_interval']}이며, 현재 알림 간격과 비슷해요.</div><div class="care-ai-item"><b>📈 성장</b>현재 몸무게 4.2kg으로 성장 추세를 계속 관찰해 주세요.</div><div class="care-ai-item"><b>💉 예방접종</b>다음 접종은 {vaccination['next']['name']}이며 {vaccination['next']['date']}에 예정되어 있어요.</div></div></div>
         """,
