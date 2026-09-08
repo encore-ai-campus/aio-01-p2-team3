@@ -260,6 +260,7 @@ def render() -> None:
         st.session_state.chat_draft = pending_voice_draft
         st.session_state.pending_voice_draft = ""
     st.session_state.setdefault("show_diaper_capture", False)
+    st.session_state.setdefault("pending_hospital_search", False)
     topic_questions = {
         "feeding": "생후 1개월 영아의 수유 시 유의할 점과 보호자가 확인할 신호를 알려주세요.",
         "sleep": "생후 4~6개월 아기의 수면 루틴을 만드는 방법을 알려주세요.",
@@ -271,7 +272,7 @@ def render() -> None:
         st.session_state.show_diaper_capture = True
         st.session_state.applied_chat_topic = topic
     elif topic == "hospital" and st.session_state.applied_chat_topic != topic:
-        st.session_state.show_hospital_search = True
+        st.session_state.pending_hospital_search = True
         st.session_state.applied_chat_topic = topic
     elif topic in topic_questions and st.session_state.applied_chat_topic != topic:
         st.session_state.pending_chat_message = topic_questions[topic]
@@ -344,56 +345,21 @@ def render() -> None:
                         _save_feeding(baby, int(custom_amount))
                         st.rerun()
 
-            if st.session_state.show_hospital_search:
-                st.markdown("<div class='chat-ai'><b>주변 소아과를 찾아드릴게요.</b><br>검색할 지역을 입력해 주세요.</div>", unsafe_allow_html=True)
-                hospital_region = st.text_input(
-                    "소아과 검색 지역",
-                    placeholder="예: 서울특별시 동작구",
-                    key="hospital_search_region",
-                    label_visibility="collapsed",
-                )
-                if st.button("소아과 검색", key="search_pediatric_hospitals", use_container_width=True):
-                    region = hospital_region.strip()
-                    if not region:
-                        st.warning("검색할 지역을 입력해 주세요.")
-                    else:
-                        result = _search_hospitals_with_sse(region)
-                        if result["success"]:
-                            data = result["data"]
-                            st.session_state.chat_messages.append(("user", f"{region} 주변 소아과를 찾아줘"))
-                            st.session_state.chat_messages.append(("ai", _format_hospital_message(region, data)))
-                            st.session_state.show_hospital_search = False
-                            st.rerun()
-                        else:
-                            st.error(result.get("message", "소아과 검색을 처리하지 못했습니다."))
+            if st.session_state.pending_hospital_search:
+                region = "신대방동"
+                st.session_state.pending_hospital_search = False
+                st.markdown("<div class='chat-ai'><b>주변 소아과를 찾아드릴게요.</b></div>", unsafe_allow_html=True)
+                result = _search_hospitals_with_sse(region)
+                if result["success"]:
+                    st.session_state.chat_messages.append(("user", f"{region} 주변 소아과를 찾아줘"))
+                    st.session_state.chat_messages.append(("ai", _format_hospital_message(region, result["data"])))
+                    st.rerun()
+                else:
+                    st.error(result.get("message", "소아과 검색을 처리하지 못했습니다."))
 
-        topic_buttons = [
-            ("feeding", "🍼 월령별 수유"),
-            ("diaper", "▣ 기저귀 사진 분석"),
-            ("hospital", "🏥 주변 소아과"),
-            ("safety", "🛡️ 아기 안전 수칙"),
-        ]
-        st.markdown(
-            "<style>"
-            ".st-key-topic_feeding button,.st-key-topic_diaper button,.st-key-topic_hospital button,.st-key-topic_safety button{"
-            "border:1px solid #DFE4F1!important;border-radius:9px!important;color:#202737!important;background:#fff!important;font-size:13px!important}"
-            ".st-key-topic_feeding button:hover,.st-key-topic_diaper button:hover,.st-key-topic_hospital button:hover,.st-key-topic_safety button:hover{"
-            "border-color:#6374DC!important;color:#6374DC!important;background:#EEF1FF!important}"
-            "@media(max-width:700px){"
-            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){flex-wrap:wrap!important;gap:.5rem!important}"
-            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding)>[data-testid='stColumn']{flex:0 0 calc(50% - .25rem)!important;width:calc(50% - .25rem)!important;min-width:0!important}"
-            "}"
-            "</style>",
-            unsafe_allow_html=True,
-        )
-        topic_cols = st.columns(4)
-        for column, (topic_name, label) in zip(topic_cols, topic_buttons):
-            if column.button(label, key=f"topic_{topic_name}", use_container_width=True):
-                st.session_state.chat_topic = topic_name
-                st.session_state.applied_chat_topic = ""
-                st.rerun()
-
-        if st.session_state.show_diaper_capture:
+        def _render_diaper_panel() -> None:
+            if not st.session_state.show_diaper_capture:
+                return
             st.markdown("<div class='notice'>사진을 올리면 AI가 색상·형태 등 관찰 가능한 정보를 분석해 알려드려요. 사진만으로 육아 기록이 자동 저장되지는 않습니다.</div>", unsafe_allow_html=True)
             camera_col, file_col = st.columns(2)
             with camera_col:
@@ -495,6 +461,34 @@ def render() -> None:
         if submitted and draft.strip():
             st.session_state.pending_chat_message = draft.strip()
             st.rerun()
+
+        topic_buttons = [
+            ("feeding", "🍼 월령별 수유"),
+            ("diaper", "▣ 기저귀 사진 분석"),
+            ("hospital", "🏥 주변 소아과"),
+            ("safety", "🛡️ 아기 안전 수칙"),
+        ]
+        st.markdown(
+            "<style>"
+            ".st-key-topic_feeding button,.st-key-topic_diaper button,.st-key-topic_hospital button,.st-key-topic_safety button{"
+            "border:1px solid #DFE4F1!important;border-radius:9px!important;color:#202737!important;background:#fff!important;font-size:13px!important}"
+            ".st-key-topic_feeding button:hover,.st-key-topic_diaper button:hover,.st-key-topic_hospital button:hover,.st-key-topic_safety button:hover{"
+            "border-color:#6374DC!important;color:#6374DC!important;background:#EEF1FF!important}"
+            "@media(max-width:700px){"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){flex-wrap:wrap!important;gap:.5rem!important}"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding)>[data-testid='stColumn']{flex:0 0 calc(50% - .25rem)!important;width:calc(50% - .25rem)!important;min-width:0!important}"
+            "}"
+            "</style>",
+            unsafe_allow_html=True,
+        )
+        topic_cols = st.columns(4)
+        for column, (topic_name, label) in zip(topic_cols, topic_buttons):
+            if column.button(label, key=f"topic_{topic_name}", use_container_width=True):
+                st.session_state.chat_topic = topic_name
+                st.session_state.applied_chat_topic = ""
+                st.rerun()
+
+        _render_diaper_panel()
 
     st.markdown("<br>", unsafe_allow_html=True)
     left, right = st.columns([1, 1.35])
