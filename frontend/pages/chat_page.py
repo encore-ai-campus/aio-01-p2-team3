@@ -382,19 +382,37 @@ def render() -> None:
                 st.image(photo, caption="선택한 기저귀 사진", use_container_width=True)
                 signature = f"{getattr(photo, 'name', 'diaper')}:{getattr(photo, 'size', 0)}"
                 if signature != st.session_state.last_diaper_signature:
-                    result = api.analyze_diaper_image(
-                        photo,
-                        baby_id=baby["baby_id"],
-                        age_days=baby["age_days"],
-                        feeding_type=baby["feeding_type"],
-                        user_id=st.session_state.user_id,
-                        session_id=st.session_state.session_id,
-                    )
+                    # Keep the progress feedback in the same result position
+                    # while the image request is being processed.
+                    analysis_progress = st.empty()
+                    with analysis_progress.status("사진을 확인하고 있어요.", expanded=False) as status:
+                        for label in (
+                            "사진 품질을 확인하고 있어요.",
+                            "색상과 형태를 관찰하고 있어요.",
+                            "주의 신호를 확인하고 있어요.",
+                            "분석 결과를 준비하고 있어요.",
+                        ):
+                            status.update(label=label, expanded=False)
+                            time.sleep(0.8)
+                        result = api.analyze_diaper_image(
+                            photo,
+                            baby_id=baby["baby_id"],
+                            age_days=baby["age_days"],
+                            feeding_type=baby["feeding_type"],
+                            user_id=st.session_state.user_id,
+                            session_id=st.session_state.session_id,
+                        )
+                        status.update(
+                            label="분석을 완료했어요." if result["success"] else "사진을 분석하지 못했어요.",
+                            state="complete" if result["success"] else "error",
+                            expanded=False,
+                        )
                     if result["success"]:
                         st.session_state.diaper_analysis_result = result["data"]
                         st.session_state.last_diaper_signature = signature
                     else:
                         st.error(result.get("message", "사진을 분석하지 못했습니다."))
+                    analysis_progress.empty()
 
                 analysis = st.session_state.diaper_analysis_result
                 if analysis:
