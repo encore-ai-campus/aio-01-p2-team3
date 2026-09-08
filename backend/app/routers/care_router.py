@@ -1,8 +1,5 @@
 """수유 알림 설정 API를 제공합니다."""
 
-import json
-from datetime import date
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -31,6 +28,7 @@ from app.services.care.reminder_service import (
     get_feeding_reminder,
     update_feeding_reminder,
 )
+from app.services.care.growth_service import build_growth_information
 
 
 router = APIRouter(prefix="/api", tags=["육아 관리"])
@@ -315,20 +313,11 @@ async def get_growth_api(
     except RuntimeError as error:
         raise HTTPException(status_code=503, detail="Care MCP 서버 연결 또는 응답 처리에 실패했습니다.") from error
 
-    reference_path = Path(__file__).resolve().parents[2] / "data" / "growth_reference.json"
     try:
-        reference_data = json.loads(reference_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        reference_data = {}
-    age_months = max(0, (date.today() - baby.birth_date).days // 30)
-    reference = reference_data.get(baby.gender, {}).get(str(age_months))
+        data = build_growth_information(baby, records)
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     return create_care_success_response(
         "성장 기록을 조회했습니다.",
-        {
-            "baby_id": baby_id,
-            "age_months": age_months,
-            "records": records,
-            "reference": reference,
-            "reference_notice": "참고값은 진단이나 정상·비정상 판정에 사용하지 않습니다.",
-        },
+        data,
     )
