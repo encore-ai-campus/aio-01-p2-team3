@@ -188,13 +188,15 @@ def _send(message: str, progress_slot) -> None:
     st.session_state.chat_messages.append(("ai", answer_text or "답변을 준비하지 못했습니다."))
 
 
-def _send_draft() -> None:
-    """Queue the widget value before Streamlit redraws the page."""
-    draft = st.session_state.chat_draft.strip()
+def _send_draft(widget_key: str) -> None:
+    """Queue and clear the draft inside the widget callback."""
+    draft = str(st.session_state.get(widget_key, "")).strip()
     if draft:
         st.session_state.pending_chat_message = draft
-        st.session_state.chat_draft = ""
         st.session_state.voice_transcript = ""
+    # Widget state may only be changed safely from its callback. Clearing it
+    # here prevents the next rerun from replaying the previous Enter event.
+    st.session_state[widget_key] = ""
 
 
 def _format_hospital_message(region: str, data: dict) -> str:
@@ -403,19 +405,37 @@ def render() -> None:
                 st.image(photo, caption="선택한 기저귀 사진", use_container_width=True)
                 signature = f"{getattr(photo, 'name', 'diaper')}:{getattr(photo, 'size', 0)}"
                 if signature != st.session_state.last_diaper_signature:
-                    result = api.analyze_diaper_image(
-                        photo,
-                        baby_id=baby["baby_id"],
-                        age_days=baby["age_days"],
-                        feeding_type=baby["feeding_type"],
-                        user_id=st.session_state.user_id,
-                        session_id=st.session_state.session_id,
-                    )
+                    # Keep the progress feedback in the same result position
+                    # while the image request is being processed.
+                    analysis_progress = st.empty()
+                    with analysis_progress.status("사진을 확인하고 있어요.", expanded=False) as status:
+                        for label in (
+                            "사진 품질을 확인하고 있어요.",
+                            "색상과 형태를 관찰하고 있어요.",
+                            "주의 신호를 확인하고 있어요.",
+                            "분석 결과를 준비하고 있어요.",
+                        ):
+                            status.update(label=label, expanded=False)
+                            time.sleep(0.8)
+                        result = api.analyze_diaper_image(
+                            photo,
+                            baby_id=baby["baby_id"],
+                            age_days=baby["age_days"],
+                            feeding_type=baby["feeding_type"],
+                            user_id=st.session_state.user_id,
+                            session_id=st.session_state.session_id,
+                        )
+                        status.update(
+                            label="분석을 완료했어요." if result["success"] else "사진을 분석하지 못했어요.",
+                            state="complete" if result["success"] else "error",
+                            expanded=False,
+                        )
                     if result["success"]:
                         st.session_state.diaper_analysis_result = result["data"]
                         st.session_state.last_diaper_signature = signature
                     else:
                         st.error(result.get("message", "사진을 분석하지 못했습니다."))
+                    analysis_progress.empty()
 
                 analysis = st.session_state.diaper_analysis_result
                 if analysis:
@@ -511,6 +531,7 @@ def render() -> None:
             type="primary",
             use_container_width=True,
             on_click=_send_draft,
+            args=("chat_draft",),
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
