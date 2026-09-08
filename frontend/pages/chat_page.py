@@ -119,6 +119,9 @@ def _render_chat_feeding_reminder(baby: dict) -> None:
         )
         st.markdown(
             "<style>"
+            ".st-key-voice_recorder_row{margin-top:-57px!important;margin-bottom:-54px!important;position:relative;z-index:2;pointer-events:none}"
+            ".st-key-voice_recorder_row button{pointer-events:auto}"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){margin-top:-20px!important}"
             "@media(max-width:700px){"
             "[data-testid='stHorizontalBlock']:has(.st-key-chat_feeding_done){flex-wrap:nowrap!important;gap:.35rem!important}"
             "[data-testid='stHorizontalBlock']:has(.st-key-chat_feeding_done)>[data-testid='stColumn']{min-width:0!important;width:auto!important}"
@@ -196,6 +199,13 @@ def _send_draft(widget_key: str) -> None:
     # Widget state may only be changed safely from its callback. Clearing it
     # here prevents the next rerun from replaying the previous Enter event.
     st.session_state[widget_key] = ""
+
+
+def _queue_chat_form_submission() -> None:
+    """Run before the form redraw so one submit produces one chat request."""
+    draft = str(st.session_state.get("chat_draft", "")).strip()
+    if draft:
+        st.session_state.pending_chat_message = draft
 
 
 def _format_hospital_message(region: str, data: dict) -> str:
@@ -449,18 +459,56 @@ def render() -> None:
                 label_visibility="collapsed",
             )
             with voice_col:
-                with st.popover("🎙️", help="음성으로 입력", use_container_width=True):
-                    st.caption("음성 입력은 현재 준비 중입니다.")
+                st.empty()
             submitted = send_col.form_submit_button(
                 "↑",
                 key="chat_send_message",
                 type="primary",
                 use_container_width=True,
+                on_click=_queue_chat_form_submission,
             )
 
-        if submitted and draft.strip():
-            st.session_state.pending_chat_message = draft.strip()
-            st.rerun()
+        with st.container(key="voice_recorder_row"):
+            voice_space, voice_col, _ = st.columns([7, 1, 1])
+            with voice_col:
+                with st.popover("🎙️", help="음성으로 입력", use_container_width=True):
+                    st.caption("녹음을 마치면 자동으로 음성을 텍스트로 바꿉니다.")
+                    audio_input = getattr(st, "audio_input", None)
+                    if audio_input is None:
+                        st.warning("현재 Streamlit 버전에서는 음성 녹음을 지원하지 않습니다.")
+                    else:
+                        voice_audio = audio_input(
+                            "음성 녹음",
+                            key=f"chat_voice_recording_{st.session_state.voice_recording_counter}",
+                            label_visibility="collapsed",
+                        )
+                        if voice_audio is not None:
+                            signature = f"{getattr(voice_audio, 'name', 'voice')}:{getattr(voice_audio, 'size', 0)}"
+                            if signature != st.session_state.last_voice_audio_signature:
+                                result = api.transcribe_audio(
+                                    voice_audio,
+                                    baby["baby_id"],
+                                    st.session_state.session_id,
+                                    st.session_state.user_id,
+                                )
+                                if result["success"]:
+                                    data = result["data"]
+                                    snapshot = data.get("approval_snapshot", {})
+                                    if data.get("response_type") == "stt_record_approval" and snapshot.get("event_type") == "feeding":
+                                        st.session_state.pending_stt_record = {
+                                            "transcript": data.get("transcript", ""),
+                                            "amount_ml": int(snapshot.get("amount_ml", 0)),
+                                            "feeding_type": snapshot.get("feeding_type", baby["feeding_type"]),
+                                            "tool_call_id": data.get("tool_call_id"),
+                                            "idempotency_key": f"{st.session_state.session_id}-{data.get('tool_call_id', 'stt')}",
+                                        }
+                                    else:
+                                        st.session_state.pending_voice_draft = data.get("transcript", "")
+                                    st.session_state.last_voice_audio_signature = signature
+                                    st.session_state.voice_recording_counter += 1
+                                    st.rerun()
+                                else:
+                                    st.error(result.get("message", "음성을 텍스트로 바꾸지 못했습니다."))
 
         topic_buttons = [
             ("feeding", "🍼 월령별 수유"),
