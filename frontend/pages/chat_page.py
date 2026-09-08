@@ -37,7 +37,6 @@ def _approve_stt_record(baby: dict) -> None:
         user_id=st.session_state.user_id,
     )
     if result["success"]:
-        st.session_state.chat_messages.append(("user", pending["transcript"]))
         st.session_state.chat_messages.append(("ai", result["message"]))
         st.session_state.pending_stt_record = None
     else:
@@ -76,6 +75,12 @@ def _skip_feeding_reminder() -> None:
     interval = _format_feeding_interval(st.session_state.feeding_interval_minutes)
     # A reminder action is the newest interaction, so close any unfinished
     # special-purpose panel that would otherwise visually appear after it.
+    result = api.change_feeding_reminder_action(
+        baby_id=st.session_state.baby_id, action="skip", user_id=st.session_state.user_id, session_id=st.session_state.session_id
+    )
+    if not result["success"]:
+        st.error(result.get("message", "알림 상태를 변경하지 못했습니다."))
+        return
     st.session_state.show_hospital_search = False
     st.session_state.show_diaper_capture = False
     st.session_state.chat_messages.append(("user", "이번 알람은 건너뛸게요."))
@@ -89,6 +94,12 @@ def _snooze_feeding_reminder() -> None:
     """시연에서는 10초 뒤 알림을 다시 표시한다."""
     # Keep the latest action at the end of the conversation, rather than
     # leaving an older hospital/photo panel below the new reminder response.
+    result = api.change_feeding_reminder_action(
+        baby_id=st.session_state.baby_id, action="snooze", user_id=st.session_state.user_id, session_id=st.session_state.session_id
+    )
+    if not result["success"]:
+        st.error(result.get("message", "알림 상태를 변경하지 못했습니다."))
+        return
     st.session_state.show_hospital_search = False
     st.session_state.show_diaper_capture = False
     st.session_state.chat_messages.append(("user", "10분 후에 다시 알려줘."))
@@ -153,6 +164,7 @@ def _send(message: str, progress_slot) -> None:
         "generating_answer": "답변을 만들고 있어요.",
     }
     answer_text = None
+    answer_metadata = {}
     last_progress_label = None
     with progress_slot.container():
         # Keep one changing line for the current SSE phase; an expanded
@@ -177,7 +189,8 @@ def _send(message: str, progress_slot) -> None:
                 elif event_name == "completed":
                     result = data.get("result", data)
                     if result.get("success"):
-                        answer_text = (result.get("data") or {}).get("answer", result.get("message"))
+                        answer_metadata = result.get("data") or {}
+                        answer_text = answer_metadata.get("answer", result.get("message"))
                         status.update(label="답변을 준비했어요.", state="complete", expanded=False)
                     else:
                         answer_text = result.get("message", "채팅 요청을 처리하지 못했습니다.")
@@ -185,6 +198,11 @@ def _send(message: str, progress_slot) -> None:
                 elif event_name == "error":
                     answer_text = data.get("message", "채팅 요청을 처리하지 못했습니다.")
                     status.update(label="요청을 처리하지 못했습니다.", state="error")
+    if answer_metadata.get("sources"):
+        source_labels = ", ".join(str(source.get("title", "공식 자료")) for source in answer_metadata["sources"][:3])
+        answer_text = f"{answer_text}\n\n📚 참고 자료: {source_labels}"
+    if answer_metadata.get("confidence") == "low":
+        answer_text = f"{answer_text}\n\n※ 참고용 안내이며, 근거가 충분하지 않을 수 있어요."
     st.session_state.chat_messages.append(("ai", answer_text or "답변을 준비하지 못했습니다."))
 
 
@@ -193,7 +211,6 @@ def _send_draft(widget_key: str) -> None:
     draft = str(st.session_state.get(widget_key, "")).strip()
     if draft:
         st.session_state.pending_chat_message = draft
-        st.session_state.voice_transcript = ""
     # Widget state may only be changed safely from its callback. Clearing it
     # here prevents the next rerun from replaying the previous Enter event.
     st.session_state[widget_key] = ""
@@ -203,13 +220,14 @@ def _format_hospital_message(region: str, data: dict) -> str:
     items = data.get("items", data.get("data", []))
     if not items:
         return f"{region}에서 검색된 소아과가 없어요. 지역명을 다시 확인해 주세요."
-    first = items[0]
-    return (
-        f"{first.get('hospital_name', '소아과')}\n"
-        f"{first.get('address', '')}\n"
-        f"{first.get('phone', '전화번호 확인 필요')}\n"
-        f"{data.get('notice', '방문 전 진료 가능 여부를 확인해 주세요.')}"
-    )
+    hospitals = []
+    for index, hospital in enumerate(items[:3], start=1):
+        name = escape(str(hospital.get("hospital_name", "소아과")))
+        address = escape(str(hospital.get("address", "주소 확인 필요")))
+        phone = escape(str(hospital.get("phone") or "전화번호 확인 필요"))
+        hospitals.append(f"<b>{index}. {name}</b><br>{address}<br>{phone}")
+    notice = escape(str(data.get("notice", "방문 전 진료 가능 여부를 확인해 주세요.")))
+    return "<br><br>".join(hospitals) + f"<br><br><span class='muted'>{notice}</span>"
 
 
 def _search_hospitals_with_sse(region: str) -> dict:
@@ -260,6 +278,7 @@ def render() -> None:
         st.session_state.chat_draft = pending_voice_draft
         st.session_state.pending_voice_draft = ""
     st.session_state.setdefault("show_diaper_capture", False)
+    st.session_state.setdefault("pending_hospital_search", False)
     topic_questions = {
         "feeding": "생후 1개월 영아의 수유 시 유의할 점과 보호자가 확인할 신호를 알려주세요.",
         "sleep": "생후 4~6개월 아기의 수면 루틴을 만드는 방법을 알려주세요.",
@@ -271,7 +290,7 @@ def render() -> None:
         st.session_state.show_diaper_capture = True
         st.session_state.applied_chat_topic = topic
     elif topic == "hospital" and st.session_state.applied_chat_topic != topic:
-        st.session_state.show_hospital_search = True
+        st.session_state.pending_hospital_search = True
         st.session_state.applied_chat_topic = topic
     elif topic in topic_questions and st.session_state.applied_chat_topic != topic:
         st.session_state.pending_chat_message = topic_questions[topic]
@@ -300,7 +319,6 @@ def render() -> None:
 
             pending_stt = st.session_state.pending_stt_record
             if pending_stt:
-                st.markdown(f"<div class='chat-user'>{pending_stt['transcript']}</div>", unsafe_allow_html=True)
                 st.markdown(
                     "<div class='chat-ai'><b>내용을 확인해 주세요. DB에 저장됩니다.</b><br>"
                     f"{pending_stt['feeding_type']} {pending_stt['amount_ml']}ml를 기록할까요?</div>",
@@ -313,11 +331,6 @@ def render() -> None:
                 if cancel_col.button("취소", key="cancel_stt_record", use_container_width=True):
                     _cancel_stt_record(baby)
                     st.rerun()
-
-            voice_transcript = st.session_state.voice_transcript
-            if voice_transcript:
-                st.markdown("<div class='chat-ai'>음성을 다음 문장으로 인식했어요. 아래 입력창에서 확인하거나 수정한 뒤 전송해 주세요.</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='chat-user'>{escape(voice_transcript)}</div>", unsafe_allow_html=True)
 
             if st.session_state.show_feeding_amount_options:
                 st.markdown(
@@ -344,56 +357,23 @@ def render() -> None:
                         _save_feeding(baby, int(custom_amount))
                         st.rerun()
 
-            if st.session_state.show_hospital_search:
-                st.markdown("<div class='chat-ai'><b>주변 소아과를 찾아드릴게요.</b><br>검색할 지역을 입력해 주세요.</div>", unsafe_allow_html=True)
-                hospital_region = st.text_input(
-                    "소아과 검색 지역",
-                    placeholder="예: 서울특별시 동작구",
-                    key="hospital_search_region",
-                    label_visibility="collapsed",
-                )
-                if st.button("소아과 검색", key="search_pediatric_hospitals", use_container_width=True):
-                    region = hospital_region.strip()
-                    if not region:
-                        st.warning("검색할 지역을 입력해 주세요.")
-                    else:
-                        result = _search_hospitals_with_sse(region)
-                        if result["success"]:
-                            data = result["data"]
-                            st.session_state.chat_messages.append(("user", f"{region} 주변 소아과를 찾아줘"))
-                            st.session_state.chat_messages.append(("ai", _format_hospital_message(region, data)))
-                            st.session_state.show_hospital_search = False
-                            st.rerun()
-                        else:
-                            st.error(result.get("message", "소아과 검색을 처리하지 못했습니다."))
+            if st.session_state.pending_hospital_search:
+                # The quick button is intentionally not a chat question.  It
+                # runs one predetermined local search and displays its result.
+                region = "신대방동"
+                st.session_state.pending_hospital_search = False
+                st.markdown("<div class='chat-ai'><b>주변 소아과를 찾아드릴게요.</b></div>", unsafe_allow_html=True)
+                result = _search_hospitals_with_sse(region)
+                if result["success"]:
+                    st.session_state.chat_messages.append(("user", f"{region} 주변 소아과를 찾아줘"))
+                    st.session_state.chat_messages.append(("ai", _format_hospital_message(region, result["data"])))
+                    st.rerun()
+                else:
+                    st.error(result.get("message", "소아과 검색을 처리하지 못했습니다."))
 
-        topic_buttons = [
-            ("feeding", "🍼 월령별 수유"),
-            ("diaper", "▣ 기저귀 사진 분석"),
-            ("hospital", "🏥 주변 소아과"),
-            ("safety", "🛡️ 아기 안전 수칙"),
-        ]
-        st.markdown(
-            "<style>"
-            ".st-key-topic_feeding button,.st-key-topic_diaper button,.st-key-topic_hospital button,.st-key-topic_safety button{"
-            "border:1px solid #DFE4F1!important;border-radius:9px!important;color:#202737!important;background:#fff!important;font-size:13px!important}"
-            ".st-key-topic_feeding button:hover,.st-key-topic_diaper button:hover,.st-key-topic_hospital button:hover,.st-key-topic_safety button:hover{"
-            "border-color:#6374DC!important;color:#6374DC!important;background:#EEF1FF!important}"
-            "@media(max-width:700px){"
-            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){flex-wrap:wrap!important;gap:.5rem!important}"
-            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding)>[data-testid='stColumn']{flex:0 0 calc(50% - .25rem)!important;width:calc(50% - .25rem)!important;min-width:0!important}"
-            "}"
-            "</style>",
-            unsafe_allow_html=True,
-        )
-        topic_cols = st.columns(4)
-        for column, (topic_name, label) in zip(topic_cols, topic_buttons):
-            if column.button(label, key=f"topic_{topic_name}", use_container_width=True):
-                st.session_state.chat_topic = topic_name
-                st.session_state.applied_chat_topic = ""
-                st.rerun()
-
-        if st.session_state.show_diaper_capture:
+        def _render_diaper_panel() -> None:
+            if not st.session_state.show_diaper_capture:
+                return
             st.markdown("<div class='notice'>사진을 올리면 AI가 색상·형태 등 관찰 가능한 정보를 분석해 알려드려요. 사진만으로 육아 기록이 자동 저장되지는 않습니다.</div>", unsafe_allow_html=True)
             camera_col, file_col = st.columns(2)
             with camera_col:
@@ -471,8 +451,11 @@ def render() -> None:
             "</style>",
             unsafe_allow_html=True,
         )
+        # audio_input must stay outside a form: a form delays widget updates
+        # until its submit button is pressed, so stopping a recording would not
+        # start STT immediately.
         input_col, voice_col, send_col = st.columns([7, 1, 1])
-        input_col.text_input(
+        draft = input_col.text_input(
             "채팅 입력",
             key="chat_draft",
             placeholder="육아 기록이나 궁금한 점을 입력하세요",
@@ -480,59 +463,55 @@ def render() -> None:
         )
         with voice_col:
             with st.popover("🎙️", help="음성으로 입력", use_container_width=True):
-                st.markdown("**음성으로 말하기**")
-                st.caption("녹음한 내용은 바로 전송·저장되지 않으며, 아래에서 확인하고 수정할 수 있어요.")
-                audio_input = getattr(st, "audio_input", None)
-                if audio_input is None:
-                    st.warning("현재 Streamlit 버전에서는 음성 녹음을 지원하지 않습니다.")
-                else:
-                    audio = audio_input(
-                        "음성 녹음",
-                        key=f"chat_voice_recording_{st.session_state.voice_recording_counter}",
-                        label_visibility="collapsed",
-                    )
-                    if audio is not None:
-                        signature = f"{getattr(audio, 'name', 'voice')}:{getattr(audio, 'size', 0)}"
-                        if signature != st.session_state.last_voice_audio_signature:
-                            result = api.transcribe_audio(
-                                audio,
-                                baby["baby_id"],
-                                st.session_state.session_id,
-                                st.session_state.user_id,
-                            )
-                            if result["success"]:
-                                data = result["data"]
-                                snapshot = data.get("record", data.get("approval_snapshot", {}))
-                                if data.get("response_type") == "stt_record_approval" and snapshot.get("event_type") == "feeding":
-                                    st.session_state.pending_stt_record = {
-                                        "transcript": data.get("transcript", ""),
-                                        "amount_ml": int(snapshot.get("amount_ml", 0)),
-                                        "feeding_type": {"breast": "모유", "formula": "분유", "mixed": "혼합"}.get(
-                                            snapshot.get("feeding_type"), baby["feeding_type"]
-                                        ),
-                                        "tool_call_id": data.get("tool_call_id"),
-                                        "request_id": result.get("request_id"),
-                                        "is_demo": data.get("is_demo", False),
-                                    }
-                                else:
-                                    transcript = data.get("transcript", "").strip()
-                                    st.session_state.voice_transcript = transcript
-                                    # STT 결과는 저장·전송하지 않는다. 사용자가 수정할 수 있도록
-                                    # 다음 rerun의 채팅 입력창에만 미리 채운다.
-                                    st.session_state.pending_voice_draft = transcript
-                                st.session_state.last_voice_audio_signature = signature
-                                st.rerun()
-                            else:
-                                st.error(result.get("message", "음성을 텍스트로 바꾸지 못했습니다."))
-                    st.caption("녹음 후 인식된 문장이 채팅창에 표시됩니다. 내용이 맞을 때만 승인해 주세요.")
-        send_col.button(
-            "↑",
-            key="chat_send_message",
-            type="primary",
-            use_container_width=True,
-            on_click=_send_draft,
-            args=("chat_draft",),
+                st.caption("녹음한 내용을 확인한 뒤 기록 여부를 선택할 수 있어요.")
+                voice_file = st.audio_input("음성 녹음", key=f"chat_voice_file_{st.session_state.voice_recording_counter}", label_visibility="collapsed")
+                if voice_file is not None:
+                    signature = f"{voice_file.name}:{voice_file.size}"
+                    if signature != st.session_state.last_voice_audio_signature:
+                        result = api.transcribe_audio(voice_file, baby_id=baby["baby_id"], session_id=st.session_state.session_id, user_id=st.session_state.user_id)
+                        if result["success"]:
+                            st.session_state.last_voice_audio_signature = signature
+                            data = result["data"]
+                            transcript = str(data.get("transcript", "")).strip()
+                            if transcript:
+                                # Set this before the next run so Streamlit can
+                                # initialize the text widget with the STT text.
+                                # The user can then edit it and press Send.
+                                st.session_state.pending_voice_draft = transcript
+                            st.rerun()
+                        else:
+                            st.error(result.get("message", "음성을 인식하지 못했습니다."))
+        if send_col.button("↑", key="chat_send_message", type="primary", use_container_width=True) and draft.strip():
+            st.session_state.pending_chat_message = draft.strip()
+            st.rerun()
+
+        topic_buttons = [
+            ("feeding", "🍼 월령별 수유"),
+            ("diaper", "▣ 기저귀 사진 분석"),
+            ("hospital", "🏥 주변 소아과"),
+            ("safety", "🛡️ 아기 안전 수칙"),
+        ]
+        st.markdown(
+            "<style>"
+            ".st-key-topic_feeding button,.st-key-topic_diaper button,.st-key-topic_hospital button,.st-key-topic_safety button{"
+            "border:1px solid #DFE4F1!important;border-radius:9px!important;color:#202737!important;background:#fff!important;font-size:13px!important}"
+            ".st-key-topic_feeding button:hover,.st-key-topic_diaper button:hover,.st-key-topic_hospital button:hover,.st-key-topic_safety button:hover{"
+            "border-color:#6374DC!important;color:#6374DC!important;background:#EEF1FF!important}"
+            "@media(max-width:700px){"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding){flex-wrap:wrap!important;gap:.5rem!important}"
+            "[data-testid='stHorizontalBlock']:has(.st-key-topic_feeding)>[data-testid='stColumn']{flex:0 0 calc(50% - .25rem)!important;width:calc(50% - .25rem)!important;min-width:0!important}"
+            "}"
+            "</style>",
+            unsafe_allow_html=True,
         )
+        topic_cols = st.columns(4)
+        for column, (topic_name, label) in zip(topic_cols, topic_buttons):
+            if column.button(label, key=f"topic_{topic_name}", use_container_width=True):
+                st.session_state.chat_topic = topic_name
+                st.session_state.applied_chat_topic = ""
+                st.rerun()
+
+        _render_diaper_panel()
 
     st.markdown("<br>", unsafe_allow_html=True)
     left, right = st.columns([1, 1.35])
