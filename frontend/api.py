@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 import json
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -85,7 +85,7 @@ def request_backend(
 
 
 BABY = {
-    "baby_id": "baby-seoa-001",
+    "baby_id": "baby-001",
     "baby_name": "서아",
     "birth_date": "2026-08-03",
     "age_days": 31,
@@ -107,8 +107,36 @@ def test_login(selected_user: str) -> dict:
     return {"success": True, "data": {"user_id": user_id, "baby_id": BABY["baby_id"], "session_id": "demo-session"}}
 
 
-def get_baby(_: str) -> dict:
-    return {"success": True, "data": BABY.copy()}
+def get_baby(baby_id: str, *, user_id: str | None = None, session_id: str | None = None) -> dict:
+    """Read the logged-in test baby's real profile when the backend is enabled."""
+    if not USE_MOCK_API and user_id and session_id:
+        result = request_backend(
+            "GET",
+            f"/api/babies/{baby_id}",
+            headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+        )
+        if result["success"]:
+            data = result["data"]
+            birth_date = data.get("birth_date", BABY["birth_date"])
+            try:
+                age_days = (date.today() - date.fromisoformat(birth_date)).days
+            except (TypeError, ValueError):
+                age_days = BABY["age_days"]
+            feeding_labels = {"breast": "모유", "formula": "분유", "mixed": "혼합"}
+            return {
+                "success": True,
+                "data": {
+                    **BABY,
+                    **data,
+                    "baby_id": data.get("id", baby_id),
+                    "age_days": age_days,
+                    "feeding_type": feeding_labels.get(data.get("feeding_type"), data.get("feeding_type")),
+                },
+            }
+        return result
+    fallback = BABY.copy()
+    fallback["baby_id"] = baby_id
+    return {"success": True, "data": fallback}
 
 
 def get_dashboard(_: str) -> dict:
@@ -337,6 +365,7 @@ def create_care_log(
     amount_ml: int,
     feeding_type: str,
     session_id: str,
+    user_id: str,
     input_source: str = "ui",
     confirmed_by_user: bool = False,
     idempotency_key: str | None = None,
@@ -364,7 +393,12 @@ def create_care_log(
             "message": f"{feeding_type} {amount_ml}ml를 기록했습니다.",
             "data": {"log_id": "demo-feeding-log", **payload},
         }
-    return request_backend("POST", "/api/care-logs", json=payload)
+    return request_backend(
+        "POST",
+        "/api/care-logs",
+        json=payload,
+        headers={"X-User-Id": user_id, "X-Session-Id": session_id},
+    )
 
 
 def transcribe_audio(audio_file: Any, baby_id: str, session_id: str) -> dict:

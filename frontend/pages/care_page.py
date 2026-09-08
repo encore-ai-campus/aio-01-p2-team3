@@ -4,7 +4,7 @@ import api
 from common import render_page_header
 
 def render() -> None:
-    baby=api.get_baby(st.session_state.baby_id)["data"]
+    baby=api.get_baby(st.session_state.baby_id, user_id=st.session_state.user_id, session_id=st.session_state.session_id)["data"]
     records=api.get_care_records(st.session_state.baby_id)["data"]
     st.session_state.setdefault("care_record_overrides", {})
     for index, override in st.session_state.care_record_overrides.items():

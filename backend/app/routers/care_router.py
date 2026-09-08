@@ -1,5 +1,6 @@
 """수유 알림 설정 API를 제공합니다."""
 
+import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
@@ -32,6 +33,7 @@ from app.services.care.growth_service import build_growth_information
 
 
 router = APIRouter(prefix="/api", tags=["육아 관리"])
+logger = logging.getLogger(__name__)
 
 
 async def get_db_session(request: Request):
@@ -193,9 +195,12 @@ async def create_care_log_api(
             detail=str(error),
         ) from error
     except RuntimeError as error:
+        # 개발 환경에서는 MCP가 반환한 실제 원인을 콘솔과 응답에 남긴다.
+        # 원인이 확인되면 운영 환경에서는 일반 안내 문구로 바꿀 수 있다.
+        logger.exception("Care MCP로 수유 기록을 저장하지 못했습니다.")
         raise HTTPException(
             status_code=503,
-            detail="Care MCP 서버 연결 또는 응답 처리에 실패했습니다.",
+            detail=f"Care MCP 오류: {error}",
         ) from error
 
     return create_care_success_response(

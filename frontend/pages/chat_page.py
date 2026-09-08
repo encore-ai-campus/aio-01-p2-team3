@@ -13,6 +13,7 @@ def _save_feeding(baby: dict, amount_ml: int) -> None:
         amount_ml=amount_ml,
         feeding_type=baby["feeding_type"],
         session_id=st.session_state.session_id,
+        user_id=st.session_state.user_id,
     )
     if result["success"]:
         st.session_state.chat_messages.append(("user", f"{amount_ml}ml"))
@@ -32,6 +33,7 @@ def _approve_stt_record(baby: dict) -> None:
         amount_ml=pending["amount_ml"],
         feeding_type=pending["feeding_type"],
         session_id=st.session_state.session_id,
+        user_id=st.session_state.user_id,
         input_source="stt",
         confirmed_by_user=True,
         idempotency_key=pending["idempotency_key"],
@@ -167,7 +169,7 @@ def _send_draft() -> None:
 
 
 def render() -> None:
-    baby = api.get_baby(st.session_state.baby_id)["data"]
+    baby = api.get_baby(st.session_state.baby_id, user_id=st.session_state.user_id, session_id=st.session_state.session_id)["data"]
     st.session_state.setdefault("show_diaper_capture", False)
     topic_questions = {
         "feeding": "생후 1개월 영아의 수유 시 유의할 점과 보호자가 확인할 신호를 알려주세요.",

@@ -1,6 +1,7 @@
 """baby_care_server MCP 호출을 담당합니다."""
 
 import json
+import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -8,6 +9,9 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from app.core.config import BABY_CARE_MCP_URL
+
+
+logger = logging.getLogger(__name__)
 
 
 ALLOWED_TOOLS = frozenset({
@@ -76,6 +80,11 @@ async def call_baby_care_tool(
     except RuntimeError:
         raise
     except Exception as error:
+        logger.exception(
+            "Care MCP 세션 연결에 실패했습니다. url=%s tool=%s",
+            BABY_CARE_MCP_URL,
+            tool_name,
+        )
         raise RuntimeError("baby_care_server 연결에 실패했습니다.") from error
 
 
