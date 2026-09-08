@@ -1,19 +1,14 @@
 """STT upload and one-time approval routes."""
 
-import io
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from uuid import uuid4
 
 from datetime import date
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from openai import AsyncOpenAI
-
-from app.core.config import OPENAI_API_KEY, STT_MODEL
-from app.core.record_policy import ALLOWED_STT_AUDIO_TYPES, ALLOWED_STT_SUFFIXES, MAX_STT_AUDIO_BYTES, STT_APPROVAL_TTL_SECONDS
+from app.core.record_policy import STT_APPROVAL_TTL_SECONDS
 from app.mcp_clients.baby_care_client import analyze_infant_stool
 from app.models.baby import Baby
 from app.schemas.media import DiaperAnalysisResponse, SttApprovalRequest, SttResponse
@@ -21,6 +16,7 @@ from app.services.agent.memory_trace_service import write_stt_trace
 from app.services.agent.tool_call_service import execute_stt_pending_call
 from app.services.auth_service import get_login_session
 from app.services.media.image_service import delete_diaper_image, save_diaper_image
+from app.services.media.speech_service import transcribe_audio as transcribe_upload
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,19 +53,7 @@ async def transcribe_audio(
     session = await current_user(request, user_id, session_id)
     if session.get("baby_id") != baby_id:
         raise HTTPException(status_code=403, detail="요청한 아기 정보에 접근할 수 없습니다.")
-    suffix = Path(audio.filename or "").suffix.lower()
-    if suffix not in ALLOWED_STT_SUFFIXES or audio.content_type not in ALLOWED_STT_AUDIO_TYPES:
-        raise HTTPException(status_code=415, detail="MP3, WAV, M4A, WebM 파일만 지원합니다.")
-    raw = await audio.read(MAX_STT_AUDIO_BYTES + 1)
-    if len(raw) > MAX_STT_AUDIO_BYTES:
-        raise HTTPException(status_code=413, detail="음성 파일은 최대 20MB입니다.")
-    if not OPENAI_API_KEY:
-        raise HTTPException(status_code=503, detail="음성 인식 서비스 설정이 없습니다.")
-    try:
-        stream = io.BytesIO(raw); stream.name = f"{uuid4()}{suffix}"
-        transcript = (await AsyncOpenAI(api_key=OPENAI_API_KEY).audio.transcriptions.create(model=STT_MODEL, file=stream)).text.strip()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail="음성을 텍스트로 변환하지 못했습니다.") from exc
+    transcript = await transcribe_upload(audio)
     event = extract_feeding(transcript)
     request_id = str(uuid4())
     if event is None:
