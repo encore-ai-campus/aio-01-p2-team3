@@ -1,6 +1,6 @@
 # AI 육아 도우미 API 계약표
 
-> 프론트엔드(Streamlit)와 FastAPI 사이의 연동 기준입니다. 아래에서 **확정**은 기존 기획 문서에 명시된 내용이며, **백엔드 확정 필요**는 구현 전에 담당자와 정해야 하는 항목입니다.
+> 프론트엔드(Streamlit)와 FastAPI 사이의 현재 구현 연동 기준입니다. 요청·응답 및 파일 제한은 구현된 Backend 계약을 기준으로 합니다.
 
 > 실행 설정: 프론트는 개발 편의를 위해 `USE_MOCK_API=true`가 기본값입니다. 실제 FastAPI 연동 시험·시연에서는 `USE_MOCK_API=false`와 `BACKEND_API_URL`을 설정합니다.
 
@@ -118,7 +118,7 @@ PATCH /api/babies/{baby_id}
 
 ```json
 {
-  "baby_name": "서아",
+  "baby_name": "태경",
   "birth_date": "2026-08-03",
   "gender": "female",
   "current_weight_kg": 4.2,
@@ -221,7 +221,7 @@ PATCH  /api/care-logs/{log_id}
 DELETE /api/care-logs/{log_id}
 ```
 
-프론트는 수정 내용 또는 삭제 대상을 사용자에게 확인받은 뒤 호출합니다. **백엔드 확정 필요:** 수정 요청 body의 정확한 구조.
+프론트는 수정 내용 또는 삭제 대상을 사용자에게 확인받은 뒤 호출합니다. 수정 요청 body는 변경할 필드만 포함하며, `recorded_at`, 수유 방식·양, 수면 시작·종료·시간, 기저귀, 성장 수치를 지원합니다. 이벤트 유형 자체는 수정할 수 없으며, 유형 변경은 기존 기록 삭제 후 새 `idempotency_key`로 다시 저장합니다.
 
 ### 패턴 조회
 
@@ -275,9 +275,7 @@ PATCH /api/reminders/{reminder_id}
 
 수유했어요 버튼은 `confirm`만으로 기록을 만들지 않습니다. 수유 기록을 별도로 저장해야 다음 알림 기준이 갱신됩니다.
 
-**백엔드 확정 필요:** 수유 간격 설정 저장 API의 경로·요청·응답 구조.
-
-수유 간격 설정 저장 API는 아래로 확정합니다.
+수유 간격 설정 저장 API는 아래와 같습니다.
 
 ```http
 PATCH /api/reminders/feeding/{baby_id}/settings
@@ -339,8 +337,8 @@ limit=10
 POST /api/images/diaper-analysis
 ```
 
-- 파일: 이미지 파일 업로드 방식(`multipart/form-data`)으로 예상됩니다.
-- 지원 제한: 최대 10MB. **백엔드 확정 필요:** 허용 확장자 목록과 multipart 필드명.
+- 파일: 이미지 파일 업로드 방식(`multipart/form-data`)이며 필드명은 `image`입니다.
+- 지원 제한: 최대 10MB, `JPG`·`JPEG`·`PNG` 및 `image/jpeg`·`image/png`만 허용합니다.
 - 프론트가 함께 제공해야 하는 맥락: `baby_id`, 월령, 수유 방식, 선택 정보인 발열 여부·최근 24시간 배변 횟수.
 
 주요 결과 필드:
@@ -457,4 +455,4 @@ STT 업로드와 승인 API 경로는 다음과 같이 구현되어 있습니다
 - 파일 업로드는 MIME 타입과 크기를 프론트에서도 먼저 검사합니다.
 - 저장 요청은 버튼을 잠그고 `idempotency_key`를 재사용합니다.
 - 성공한 저장·수정·삭제 뒤에는 해당 목록과 홈 요약을 다시 조회합니다.
-- 문서에서 **백엔드 확정 필요**로 표시한 항목은 임의로 구현하지 않고 담당자와 확정한 뒤 반영합니다.
+- 문서의 요청·응답·파일 제한은 현재 Backend 구현과 함께 갱신합니다.

@@ -1,0 +1,835 @@
+{
+  "evaluated_at": "2026-09-09T20:14:13.304356+09:00",
+  "base_url": "http://127.0.0.1:8000",
+  "test_user_id": "user-002",
+  "baby_id": "baby-002",
+  "read_only": true,
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "results": [
+    {
+      "id": "L-01",
+      "message": "오늘 수유 몇번했어",
+      "expected_tools": [
+        "get_care_records"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "get_care_records"
+      ],
+      "actual_response_type": "text",
+      "request_id": "b56f2aaf-f60d-4e79-9a15-a2cf6f16987c",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "get_care_records"
+        ],
+        "tool_arguments": [
+          {
+            "query_type": "today",
+            "summary_type": "feeding"
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-02",
+      "message": "오늘 수면 총 몇시간 했어",
+      "expected_tools": [
+        "get_care_records"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "get_care_records"
+      ],
+      "actual_response_type": "text",
+      "request_id": "cbadd0f3-f546-4f1d-9ed0-8741aadd950e",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "get_care_records"
+        ],
+        "tool_arguments": [
+          {
+            "query_type": "today",
+            "summary_type": "sleep"
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-03",
+      "message": "오늘 소변 대변 몇번했어",
+      "expected_tools": [
+        "get_care_records"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "get_care_records"
+      ],
+      "actual_response_type": "text",
+      "request_id": "a382a31f-8506-412a-b019-859e9a30e97e",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "get_care_records"
+        ],
+        "tool_arguments": [
+          {
+            "query_type": "today",
+            "summary_type": "diaper"
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-04",
+      "message": "지난 7일 수유 패턴 알려줘",
+      "expected_tools": [
+        "get_care_records"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "get_care_records"
+      ],
+      "actual_response_type": "text",
+      "request_id": "0681d63a-891e-4ffc-8b0a-ecf8754d8437",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "get_care_records"
+        ],
+        "tool_arguments": [
+          {
+            "query_type": "pattern",
+            "days": 7
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-05",
+      "message": "분유 먹었어",
+      "expected_tools": [],
+      "expected_response_type": "clarification_required",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "clarification_required",
+      "request_id": "bd001900-dbb2-4162-805b-a205e6f8334a",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "missing_input",
+        "reflection_action": "clarification",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-06",
+      "message": "낮잠 잤어",
+      "expected_tools": [],
+      "expected_response_type": "clarification_required",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "clarification_required",
+      "request_id": "852b85d6-fe65-4e29-9828-d857bfbb3b8d",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "missing_input",
+        "reflection_action": "clarification",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-07",
+      "message": "서울 동작구 소아과 찾아줘",
+      "expected_tools": [
+        "search_pediatric_hospitals"
+      ],
+      "expected_response_type": "hospital_list",
+      "http_status": 200,
+      "actual_tools": [
+        "search_pediatric_hospitals"
+      ],
+      "actual_response_type": "hospital_list",
+      "request_id": "f5ff9a2e-9105-4dbc-836a-fd7b4603ce3f",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_pediatric_hospitals"
+        ],
+        "tool_arguments": [
+          {
+            "region": "서울특별시 동작구",
+            "page": 1,
+            "limit": 3
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-08",
+      "message": "부산 응급실 알려줘",
+      "expected_tools": [
+        "search_emergency_hospitals"
+      ],
+      "expected_response_type": "hospital_list",
+      "http_status": 200,
+      "actual_tools": [
+        "search_emergency_hospitals"
+      ],
+      "actual_response_type": "hospital_list",
+      "request_id": "b657ae62-0e70-4f13-9333-6cdff31f7331",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_emergency_hospitals"
+        ],
+        "tool_arguments": [
+          {
+            "region": "부산광역시",
+            "page": 1,
+            "limit": 3
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-09",
+      "message": "근처 소아과 알려줘",
+      "expected_tools": [],
+      "expected_response_type": "clarification_required",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "clarification_required",
+      "request_id": "b0c4a2ff-d438-4074-b4b8-6f25050e25dc",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "missing_input",
+        "reflection_action": "clarification",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-10",
+      "message": "병원 알려줘",
+      "expected_tools": [],
+      "expected_response_type": "clarification_required",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "clarification_required",
+      "request_id": "531ad6ec-57b2-4d87-af92-c00b1452fb4e",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "missing_input",
+        "reflection_action": "clarification",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-11",
+      "message": "생후 4개월 아기 수유 간격 알려줘",
+      "expected_tools": [
+        "search_feeding_guide"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "search_feeding_guide"
+      ],
+      "actual_response_type": "text",
+      "request_id": "593ec22b-c98e-4087-a686-5a53d74814ef",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_feeding_guide"
+        ],
+        "tool_arguments": [
+          {
+            "category": "feeding",
+            "top_k": 5
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-12",
+      "message": "아기가 자다가 울면서 깨는데 어떻게 해야 해?",
+      "expected_tools": [
+        "search_sleep_guide"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "search_sleep_guide"
+      ],
+      "actual_response_type": "text",
+      "request_id": "573ef94c-7297-4012-a8da-0b05e287cfef",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_sleep_guide"
+        ],
+        "tool_arguments": [
+          {
+            "category": "sleep",
+            "top_k": 5
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-13",
+      "message": "이유식은 언제 시작해?",
+      "expected_tools": [
+        "search_weaning_guide"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "search_weaning_guide"
+      ],
+      "actual_response_type": "text",
+      "request_id": "b6aa2f12-a09b-4ace-a3d5-12079f617a10",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_weaning_guide"
+        ],
+        "tool_arguments": [
+          {
+            "category": "weaning",
+            "top_k": 5
+          }
+        ],
+        "status": "success",
+        "result_validation": "no_evidence_safe_fallback",
+        "reflection_action": "safe_fallback",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-14",
+      "message": "뒤집기는 보통 언제 해?",
+      "expected_tools": [
+        "search_development_guide"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "search_development_guide"
+      ],
+      "actual_response_type": "text",
+      "request_id": "22efcc8d-ab9f-41b3-8f25-809a9bf06313",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_development_guide"
+        ],
+        "tool_arguments": [
+          {
+            "category": "development",
+            "top_k": 5
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-15",
+      "message": "아기 침대 안전수칙 알려줘",
+      "expected_tools": [
+        "search_safety_guide"
+      ],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [
+        "search_safety_guide"
+      ],
+      "actual_response_type": "text",
+      "request_id": "b4a2298b-06ef-4c2b-883d-90272c4ffa2d",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [
+          "search_safety_guide"
+        ],
+        "tool_arguments": [
+          {
+            "category": "safety",
+            "top_k": 5
+          }
+        ],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "tool_policy_checked",
+          "tool_executing",
+          "tool_executed",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-16",
+      "message": "아기 목욕은 어떻게 시키면 좋아?",
+      "expected_tools": [],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "text",
+      "request_id": "aa6c5526-4c5c-4655-858c-c370edc01ec0",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-17",
+      "message": "오늘 서울 날씨 알려줘",
+      "expected_tools": [],
+      "expected_response_type": "out_of_scope",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "out_of_scope",
+      "request_id": "6d9df5ad-076a-445a-a94e-aef35a90a8ef",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-18",
+      "message": "주식 종목 추천해 줘",
+      "expected_tools": [],
+      "expected_response_type": "out_of_scope",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "out_of_scope",
+      "request_id": "0f8d4c2d-2adb-46b9-82d8-cccdd8f8b858",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-19",
+      "message": "땅콩 알레르기가 있으면 무엇을 조심해야 해?",
+      "expected_tools": [],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "text",
+      "request_id": "42ca2865-2727-4f96-a0ee-547aa6b8ecc5",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    },
+    {
+      "id": "L-20",
+      "message": "안녕하세요",
+      "expected_tools": [],
+      "expected_response_type": "text",
+      "http_status": 200,
+      "actual_tools": [],
+      "actual_response_type": "text",
+      "request_id": "3d1c9b90-10ab-4686-8053-00a346fab8e2",
+      "trace": {
+        "user_id": "user-002",
+        "session_id": "488b9728-7038-4149-95aa-8cd3116f3a54",
+        "baby_id": "baby-002",
+        "selected_tools": [],
+        "tool_arguments": [],
+        "status": "success",
+        "result_validation": "passed",
+        "reflection_action": "none",
+        "error_type": null,
+        "retry_count": 0,
+        "execution_stages": [
+          "received",
+          "planning",
+          "answer_planned",
+          "answer_generating",
+          "answer_generated",
+          "result_verified"
+        ],
+        "step_count": 4,
+        "max_steps": 6,
+        "memory_retrieved_count": 0,
+        "memory_created_count": 0
+      },
+      "passed": true
+    }
+  ]
+}

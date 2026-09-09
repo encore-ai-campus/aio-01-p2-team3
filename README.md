@@ -1,6 +1,6 @@
-![AI Baby Care Assistant 배너](assets/ai-baby-care-banner.png)
+![베베온 배너](assets/ai-baby-care-banner.png)
 
-# AI Baby Care Assistant
+# 베베온 (AI Baby Care Assistant)
 
 0~36개월 영유아 보호자를 위한 AI 기반 육아 관리·정보 지원 서비스입니다.
 보호자가 수유·수면·배변·성장 기록을 편리하게 관리하고, 아기의 월령·수유 방식·알레르기 등 정보를 반영한 맞춤형 육아 안내를 받을 수 있도록 설계했습니다.

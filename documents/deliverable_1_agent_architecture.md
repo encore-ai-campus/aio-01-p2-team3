@@ -1,6 +1,6 @@
 # 산출물 1｜에이전트 아키텍처 설계서
 
-> 서비스명: **AI Baby Care Assistant**  
+> 서비스명: **베베온 (AI Baby Care Assistant)**
 > 대상: 0~36개월 영유아 보호자를 위한 AI 육아 도우미  
 
 ## 팀 프로젝트 개요 
@@ -33,7 +33,7 @@
 
 > 구현 정합성 안내: 현재 MVP는 Backend의 정책 기반 `AgentLoop`으로 계획 → 허용 Tool 실행 → 결과 검증을 처리하고, 입력·권한·승인·기록 저장은 Backend 정책이 통제한다. Reflection은 필수값 누락 보완 질문, 병원 검색 1회 재시도·안전 종료, RAG 근거 부족 안전 폴백을 수행한다. OpenAI 모델은 의도 분류와 일반 육아 안내 생성에 사용한다. StateGraph의 모든 노드가 독립 Runtime 노드로 분리되거나 모델이 자유롭게 반복 Function Calling을 수행한다는 의미는 아니다.
 
-- **서비스명:** AI Baby Care Assistant
+- **서비스명:** 베베온 (AI Baby Care Assistant)
 - **목적:** 수유·수면·배변·성장 기록과 보호자의 질문을 바탕으로, 아기 월령·수유 방식·알레르기를 반영한 육아 정보를 제공한다.
 - **주요 사용자:** 0~36개월 영유아의 보호자
 - **연계 도구:** `baby_care_server` MCP, `baby_info_server` MCP, FastAPI, Redis, PostgreSQL. RAG 최종 답변 생성에는 OpenAI Responses API를 사용한다.
@@ -134,18 +134,22 @@ sequenceDiagram
 | 이미지 형식·크기·품질 오류 | 사진 분석 Tool 미호출 | 재촬영/재업로드 요청 |
 | 응급 위험 표현 | 검색·기록보다 안전 안내를 우선 | 즉시 진료·응급 도움 요청 안내 |
 | 타 사용자의 `baby_id` | Tool 실행 차단 | 정보 미노출·접근 오류 |
-| MCP 연결 실패 | 일시 오류만 1회 재시도 | 실패 사실과 재시도 안내 |
+| 병원 검색 MCP의 일시 오류 | 1회 재시도 | 실패 사실과 재시도 안내 |
+| 그 외 MCP 연결 실패 | 자동 재시도 없이 안전 종료 | 실패 사실과 대체 안내 |
 | 같은 승인 요청 반복 | `idempotency_key` 검사 | 기존 결과 반환, 중복 저장 방지 |
 
-## 5. Function Calling · Tool Use 흐름
+## 5. 현재 Tool Use 흐름과 확장 Function Calling 설계
 
-1. Runtime이 두 MCP 서버의 `tools/list`를 조회한다.
-2. 발견된 Tool과 `BABY_CARE_AGENT.allowed_tools`의 교집합만 모델에 제공한다.
-3. 모델이 Function Call을 제안하면 Runtime이 Tool명, arguments, 사용자·아기 소유권, Allowlist, `ACTION_POLICY`를 검증한다.
-4. 조회·검색 Tool은 바로 호출한다. 기록 Tool은 텍스트·UI이면 즉시 실행하고 STT이면 `Human Confirm` 노드로 이동한다.
-5. `Verify Result`가 결과 스키마·빈 결과·오류 코드·중복 여부를 검증한다.
-6. 유효한 결과는 `Answer Composer`로 전달한다. 일시 오류는 제한적으로 재시도하고, 그 외 오류는 대안 안내로 종료한다.
-7. Function Call이 없으면 Tool 없이 답변을 생성한다.
+**현재 구현**은 모델이 자유롭게 Function Call을 제안하는 Runtime이 아니라, Backend의 결정론적 계획 함수가 요청 유형별 MCP Tool을 선택하는 정책 기반 흐름이다.
+
+1. Backend가 로그인 세션·사용자·아기 소유권과 필수 입력을 검증한다.
+2. 계획 함수가 요청 의도에 따라 필요한 Tool을 선택한다.
+3. `baby_care_client`의 MCP Tool Allowlist와 입력·소유권·STT 승인 정책을 다시 확인한다.
+4. 조회·검색 Tool은 실행하고, 텍스트·UI 기록은 검증 후 저장한다. STT 기록은 `Human Confirm` 승인 대기로 전환한다.
+5. 결과의 성공 여부·근거 부족·빈 결과를 검증하고, 병원 검색의 일시 오류만 1회 재시도한다.
+6. 검증된 결과 또는 안전한 폴백 안내를 반환하고 Trace를 저장한다.
+
+> `AgentProfile.allowed_tools`와 전역 `ACTION_POLICY`, OpenAI Responses API의 반복 Function Calling은 현재 구현이 아닌 **확장 설계**다. 향후 모델 주도 Tool 호출을 도입할 때도 현재의 소유권·승인·MCP Allowlist 검증을 유지한다.
 
 | 도구 | 입력 | 출력 | 실패 처리 |
 | --- | --- | --- | --- |
@@ -182,7 +186,8 @@ sequenceDiagram
 | `tools_called` | `list[str]` | `["get_care_records"]` | Verify Result, Trace | 호출 Tool 이력 |
 | `tool_results` | `list[dict]` | 결과·오류 코드 | Verify Result | Tool 실행 결과 |
 | `error_count` | `int` | `1` | 재시도 판단 | 오류·재시도 횟수 |
-| `iteration` | `int` | `2` | 종료 판단 | 그래프 반복 횟수 |
+| `step_count` | `int` | `4` | AgentLoop, Trace | 현재 요청에서 소진한 실행 단계 수 |
+| `max_steps` | `int` | `6` | AgentLoop, 종료 판단 | 계획·실행·검증·병원 재시도를 포함한 최대 실행 단계 |
 | `pending_call` | `dict \| None` | 승인 대기 호출 | 승인 API | STT 승인 후 1회 실행할 호출 |
 | `idempotency_key` | `str \| None` | `session-001-tool-001` | Tool Execute | 중복 DB 변경 방지 |
 | `status` | `str` | `completed` | Finish | 실행 상태 |
@@ -235,13 +240,14 @@ sequenceDiagram
 
 | 종료 상황 | `status` | `termination_reason` |
 | --- | --- | --- |
-| Function Call 없이 최종 답변 생성 | `completed` | `model_finished` |
+| 정책 계획으로 최종 답변 생성 | `completed` | `answer_generated` |
 | 필수 데이터 부족으로 보완 질문 반환 | `completed` | `clarification_required` |
 | STT 기록 승인 대기 | `waiting_stt_approval` | `stt_approval_required` |
 | 사용자가 승인 거절 | `rejected` | `user_rejected` |
-| Tool·정책·소유권 검증 실패 | `failed` | `invalid_tool_call` 등 오류 코드 |
+| Tool·소유권·승인 검증 실패 | `failed` | `invalid_tool_call` 등 오류 코드 |
 | OpenAI 또는 MCP 오류 | `failed` | `model_error` 또는 `mcp_tool_error` |
-| 최대 Agent 단계 초과 | `stopped` | `max_steps_exceeded` |
+| 병원 검색 재시도 소진 | `failed` | `safe_fallback` |
+| 최대 실행 단계 초과 | `failed` | `max_steps_exceeded` |
 
 ## 9. 검증 시나리오 및 완료 기준
 
@@ -258,7 +264,7 @@ sequenceDiagram
 다음 조건을 만족하면 설계를 완료로 판단한다.
 
 - 모든 요청이 인지 → 판단 → 행동 → 검증을 거쳐 명확한 종료 상태에 도달한다.
-- Function Calling은 Allowlist·소유권·입력값·정책 검증 후에만 실행된다.
+- 현재 Tool 실행은 MCP Allowlist·소유권·입력값·승인 정책 검증 후에만 실행된다.
 - 텍스트·UI 기록은 검증 후 저장되고, STT 기록은 승인 후 정확히 한 번만 저장된다.
 - 단기 기억은 TTL로 만료되고, 현재 장기 기억에는 안전한 답변 선호 정보만 남는다.
-- Tool 실패·빈 결과·권한 오류·최대 단계 초과는 안전한 폴백 응답으로 처리된다.
+- Tool 실패·빈 결과·권한 오류·병원 검색 재시도 소진·최대 실행 단계 초과는 안전한 폴백 응답으로 처리된다.

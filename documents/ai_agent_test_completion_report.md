@@ -1,10 +1,10 @@
 # AI 에이전트 테스트 완료보고서
 
-> 이 문서는 현재 구현된 AI Agent와 MCP Tool의 자동 테스트 및 Live API 탐색 실행 결과를 기록한 완료보고서입니다. 상세 Tool Event Trace는 다음 통합 시험에서 보강합니다.
+> 이 문서는 현재 구현된 베베온 AI Agent와 MCP Tool의 자동 테스트 및 Live API 통합 평가 결과를 기록한 완료보고서입니다. 읽기 전용 자연어 20건의 실제 Tool Event Trace를 수집했으며, DB 변경 시나리오와 외부 장애 주입은 별도 통합·통제 시험으로 관리합니다.
 
 ## 1. 시험 목적
 
-이미 구현한 AI Baby Care Assistant가 대표 시나리오의 입력을 안전하게 처리하는지 자동 테스트로 확인한다.
+이미 구현한 베베온(BebeOn)이 대표 시나리오의 입력을 안전하게 처리하는지 자동 테스트로 확인한다.
 
 - 육아 질문을 올바른 카테고리로 분류하고, RAG Tool 결과의 카테고리가 요청과 일치하는가?
 - 지역 정보가 있는 병원 검색 요청을 올바르게 해석하고, 일반 육아 질문에서 안전한 응답을 제공하는가?
@@ -95,7 +95,7 @@ RAG 응답 수신
 
 - 수면 질문이 수면 RAG 경로로 분류되는가: **예**
 - 다른 카테고리의 RAG 결과를 근거로 답변하지 않는가: **예**
-- 실제 API Event 단위 Trace가 수집되었는가: **아니오, 다음 통합 시험에서 수집 필요**
+- 실제 API Event 단위 Trace가 수집되었는가: **예, 읽기 전용 자연어 20건에서 수집**
 
 ## 4. Scenario 2: 일반 육아 안내 및 병원 검색 입력 검증
 
@@ -217,15 +217,15 @@ SCENARIO = {
 | Scenario 1 | 육아 질문 Tool 경로와 RAG 결과 카테고리 정합성 | PASS |
 | Scenario 2 | 일반 육아 안전 안내와 지역 기반 병원 검색 입력 검증 | PASS |
 | Scenario 3 | STT 승인 전 미실행·승인 후 1회 실행 | PASS |
-| 전체 자동 테스트 | 88개 통과 / 0개 실패 / 42개 건너뜀 | PASS (실행 범위) |
+| 전체 자동 테스트 | 119개 통과 / 0개 실패 / 42개 건너뜀 | PASS (실행 범위) |
 
-전체 판정: **Baseline 자동 테스트, PostgreSQL 기록 통합 시험, Live Agent 탐색 실행 PASS.**
+전체 판정: **현재 Baseline 자동 테스트와 읽기 전용 Live Agent 20건 Trace는 PASS. PostgreSQL 기록 통합 시험은 별도 DB 환경에서 수행한 이력 결과이며, 현재 기본 실행에서는 DB 테스트 39건이 조건부 skip된다.**
 
 ## 7. 초기 시험에서 발견한 문제와 보완 결과
 
 ### 발견한 문제
 
-- 실행된 자동 테스트 88개에서는 실패가 없었다.
+- 실행된 자동 테스트 119개에서는 실패가 없었다.
 - 초기 실행에서는 PostgreSQL 연동 테스트 39개와 Stool RAG DB 연동 테스트 3개가 환경 조건 때문에 건너뛰었다.
 - 초기 Live Trace는 모든 Tool 사용을 `knowledge_search`로 기록해 실제 Tool 선택을 구분하지 못했다.
 
@@ -241,7 +241,7 @@ SCENARIO = {
 | PostgreSQL 기록 시험 | 완료 | `RUN_DB_TESTS=1`로 재실행하여 27개 통과 |
 | Stool RAG DB 시험 | PENDING | RAG DB·색인을 준비하고 `RUN_RAG_DB_TESTS=1`로 재실행 |
 | Live Agent Trace | 완료 | `request_id` 기준 실제 Tool명·인수 요약·결과 검증 상태 수집 |
-| Reflection 전후 비교 | Live 파일럿 3건 완료 | 동일 3개 시나리오의 Trace 증빙 정확도 비교; 대규모 오류 주입 평가는 후속 확대 |
+| Reflection 전후 비교 | 통제 Mock 20건·자연어 20건 완료 | 읽기 전용 Live 20건의 실제 Tool·응답 유형·Trace 일치 확인; 오류 주입은 통제 시험 |
 
 ## 8. 결론
 
@@ -280,7 +280,7 @@ SCENARIO = {
 | 서울 동작구 소아과 찾아줘 | search_pediatric_hospitals | region=서울특별시 동작구 | passed | PASS |
 | 생후 1개월 수유 간격을 알려줘 | search_feeding_guide | category=feeding, top_k=5 | passed | PASS |
 
-재시험 Trace는 Tool명, 인수 요약, 결과 검증 상태, Reflection 조치를 기록한다. 일반 육아 안내는 Tool 미호출로 기록됐고, 병원 및 RAG 요청은 기대 Tool과 일치했다. 이 실측 범위는 일반 안내·병원·RAG 3건이며, 텍스트 기록 경로의 상세 Tool 인수·다단계 실행 순서와 자동 재실행은 후속 통합 Trace 항목이다.
+재시험 Trace는 Tool명, 인수 요약, 결과 검증 상태, Reflection 조치, `step_count`, `max_steps`를 기록한다. 읽기 전용 자연어 20건은 일반 안내·기록 조회·보완 질문·병원·RAG·범위 밖·알레르기 요청을 포함하며 모두 기대 Tool·응답 유형·Trace와 일치했다. 기록 저장·STT 승인과 병원 오류 재시도는 별도 통합·통제 시험으로 관리한다.
 
 ### 10.2 STT 승인 및 중복 실행 통합 시험
 
@@ -298,7 +298,7 @@ PostgreSQL 통합 환경에서 record_care_event 테스트를 실행했다. RUN_
 | 항목 | 수정 전 | 수정 후 |
 | --- | --- | --- |
 | Live Trace Tool 식별 | 모든 Tool 사용이 knowledge_search로 기록 | 실제 Tool명과 인수 요약 기록 |
-| Tool 선택 증빙 | 3개 Live 요청에서 판별 불가 | 3개 Live 요청 모두 기대 Tool과 일치 |
+| Tool 선택 증빙 | 초기 3개 Live 요청에서 판별 불가 | 읽기 전용 Live 20건 모두 기대 Tool·응답 유형·Trace와 일치 |
 | STT 승인 통합 시험 | DB 환경 미실행 | PostgreSQL 통합 테스트 27개 통과 |
 | 최종 판정 | 일부 PENDING | 대표 Live Scenario 및 통제 Mock 오류 주입 20건 PASS; 외부 API 장애 Live 확대는 후속 |
 

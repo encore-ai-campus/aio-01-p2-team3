@@ -1,9 +1,9 @@
-# 0~36개월 영유아 AI 육아 도우미 Agent 기획안
+# 베베온(BebeOn) 0~36개월 영유아 AI 육아 도우미 Agent 기획안
 
 <aside>
 👶
 
-**0~36개월 영유아 보호자의 기록·분석·정보 탐색을 통합 지원하는 테스트용 AI 육아 도우미**
+**0~36개월 영유아 보호자의 기록·분석·정보 탐색을 통합 지원하는 베베온(BebeOn) AI 육아 도우미**
 
 </aside>
 
@@ -248,7 +248,7 @@ flowchart TD
 
 ```json
 {
-  "baby_name": "서아",
+  "baby_name": "태경",
   "birth_date": "2026-08-03",
   "gender": "female",
   "current_weight_kg": 4.2,

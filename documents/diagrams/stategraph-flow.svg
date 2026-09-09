@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1560" viewBox="0 0 1200 1560" role="img" aria-labelledby="title desc">
-  <title id="title">AI Baby Care Assistant StateGraph 상태 흐름도</title>
+  <title id="title">베베온 StateGraph 상태 흐름도</title>
   <desc id="desc">요청 수신부터 입력 정규화, 안전 검사, 의도 분류, 검증, 도구 선택, 승인, 결과 검증, 답변, 종료까지의 흐름을 보여준다.</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
@@ -19,7 +19,7 @@
     </style>
   </defs>
   <rect width="1200" height="1560" fill="#f8fafc"/>
-  <text x="600" y="55" class="title" text-anchor="middle">AI Baby Care Assistant StateGraph 상태 흐름도</text>
+  <text x="600" y="55" class="title" text-anchor="middle">베베온 StateGraph 상태 흐름도</text>
   <text x="600" y="84" class="sub" text-anchor="middle">인지 → 판단 → 행동 → 검증</text>
 
   <rect x="430" y="115" width="340" height="74" class="box"/>

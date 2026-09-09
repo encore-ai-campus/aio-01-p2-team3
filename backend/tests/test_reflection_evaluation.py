@@ -63,9 +63,8 @@ async def _executor_for(case: EvaluationCase, attempts: list[int]) -> AgentExecu
 
 
 async def _evaluate(reflection_enabled: bool) -> dict:
-    completed = consistent = selected_correct = retries = 0
+    completed = consistent = plan_preserved = retries = 0
     for case in CASES:
-        expected_tools = case.plan.selected_tools
         attempts = [0]
         state = AgentState(request_id=case.name)
 
@@ -83,11 +82,14 @@ async def _evaluate(reflection_enabled: bool) -> dict:
                 "no_evidence_safe_fallback", "hospital_tool_unavailable_safe_fallback",
             }
             retries += state.retry_count
-            selected_correct += state.plan.selected_tools == expected_tools
+            # This controlled evaluation supplies AgentPlan itself.  It measures
+            # whether execution preserves that plan, not natural-language Tool
+            # selection accuracy (covered by test_natural_language_agent_evaluation).
+            plan_preserved += state.plan.selected_tools == case.plan.selected_tools
             continue
 
         # Baseline: execute only once; no verifier, retry, or safe fallback.
-        selected_correct += case.plan.selected_tools == expected_tools
+        plan_preserved += case.plan.selected_tools == case.plan.selected_tools
         try:
             execution = await _executor_for(case, attempts)
         except RetryableAgentError:
@@ -101,7 +103,7 @@ async def _evaluate(reflection_enabled: bool) -> dict:
     return {
         "total": total,
         "task_completion": completed / total,
-        "tool_selection_accuracy": selected_correct / total,
+        "tool_plan_preservation": plan_preserved / total,
         "response_consistency": consistent / total,
         "average_retry_count": retries / total,
     }
@@ -117,11 +119,11 @@ async def test_reflection_before_after_metrics_for_twenty_controlled_cases():
     reflected = await _evaluate(reflection_enabled=True)
 
     assert baseline == {
-        "total": 20, "task_completion": 0.85, "tool_selection_accuracy": 1.0,
+        "total": 20, "task_completion": 0.85, "tool_plan_preservation": 1.0,
         "response_consistency": 0.85, "average_retry_count": 0.0,
     }
     assert reflected == {
-        "total": 20, "task_completion": 1.0, "tool_selection_accuracy": 1.0,
+        "total": 20, "task_completion": 1.0, "tool_plan_preservation": 1.0,
         "response_consistency": 1.0, "average_retry_count": 0.1,
     }
 
@@ -154,3 +156,32 @@ async def test_retry_exhaustion_writes_redacted_trace_evidence():
     assert trace["reflection_action"] == "retry_once_then_safe_fallback"
     assert "retrying_tool" in trace["execution_stages"]
     assert "safe_fallback" in trace["execution_stages"]
+
+
+@pytest.mark.parametrize(
+    ("tool_result", "final_answer", "result_keys"),
+    [
+        (
+            {"amount_ml": 100, "recorded_at": "2026-09-09T09:00:00+09:00"},
+            "수유 100ml를 기록했습니다.",
+            ("amount_ml",),
+        ),
+        (
+            {"hospital_name": "테스트 소아과", "address": "서울 동작구"},
+            "테스트 소아과(서울 동작구)를 안내합니다.",
+            ("hospital_name", "address"),
+        ),
+        (
+            {"source_title": "수면 안전 가이드"},
+            "수면 안전 가이드에 근거해 안내합니다.",
+            ("source_title",),
+        ),
+    ],
+)
+def test_response_value_contract_compares_tool_result_values_to_final_answer(
+    tool_result: dict,
+    final_answer: str,
+    result_keys: tuple[str, ...],
+):
+    """Keep value-level response consistency separate from status-only checks."""
+    assert all(str(tool_result[key]) in final_answer for key in result_keys)

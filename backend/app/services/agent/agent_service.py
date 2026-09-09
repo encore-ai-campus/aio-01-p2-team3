@@ -681,6 +681,7 @@ async def answer_chat(request, app) -> dict:
         selected_tools=list(plan.selected_tools), tool_arguments=list(plan.tool_arguments),
         result_validation=state.result_validation, reflection_action=state.reflection_action,
         error_type=state.error_type, retry_count=state.retry_count, execution_stages=state.stages,
+        step_count=state.step_count, max_steps=state.max_steps,
     )
     message = "요청을 처리했습니다." if plan.route == "care" else "AI 답변을 생성했습니다."
     if plan.route == "hospital":
