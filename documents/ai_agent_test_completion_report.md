@@ -1,6 +1,6 @@
 # AI 에이전트 테스트 완료보고서
 
-> 이 문서는 현재 구현된 AI Agent와 MCP Tool의 자동 테스트 실행 결과를 기록한 완료보고서입니다. 실제 운영 환경의 Live API 실행값과 Trace는 다음 통합 시험에서 별도로 추가합니다.
+> 이 문서는 현재 구현된 AI Agent와 MCP Tool의 자동 테스트 및 Live API 탐색 실행 결과를 기록한 완료보고서입니다. 상세 Tool Event Trace는 다음 통합 시험에서 보강합니다.
 
 ## 1. 시험 목적
 
@@ -253,3 +253,17 @@ SCENARIO = {
 - 다음 추가 Scenario: 수유량 누락, 지역 없는 병원 검색, API 타임아웃, 빈 RAG 결과, 승인 Snapshot 변조
 
 대표 Scenario의 자동 테스트 통과만으로 모든 입력과 외부 연동이 안전하다고 결론 내리지 않는다. DB 및 Live Agent 통합 시험을 완료한 뒤 같은 형식으로 결과와 Trace를 추가한다.
+
+## 9. Live API Trace 탐색 실행 결과
+
+보고서 초안 작성 후, 실행 중인 Backend에 테스트 사용자로 로그인하고 실제 채팅 API를 호출한 뒤 Redis Trace를 조회했다.
+
+| 실제 요청 | API 결과 | request_id | Redis Trace 상태 |
+| --- | --- | --- | --- |
+| 아기 목욕은 언제 시키면 좋아? | 성공, text 응답 | f0c728fd-fea3-4421-ac93-c9e8644ef0fe | 성공 |
+| 서울 동작구 소아과 찾아줘 | 성공, hospital_list 응답 | f91643fe-72f6-49ed-bd3c-18d90ce2bd40 | 성공 |
+| 생후 1개월 수유 간격을 알려줘 | 성공, text 응답, 출처 5건, 신뢰도 high | 4f5616f7-9599-4f58-b4e8-cda06b7b361b | 성공 |
+
+이 실행으로 Live API 요청과 Redis 요약 Trace 저장은 확인됐다. Trace에는 원문 대화와 API 키가 포함되지 않았다.
+
+다만 세 요청 모두 selected_tools 값이 knowledge_search로 기록됐다. 일반 육아 안내와 병원 검색의 실제 처리 경로를 구분하지 못하므로, 현재 Trace는 요청 처리 성공과 Trace 저장 여부의 증거로만 사용한다. 실제 Tool명, 인수, 결과, 실행 순서까지 검증하려면 Event 단위 Trace 보강이 필요하다.
