@@ -2,9 +2,10 @@
 
 import json
 import re
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Literal
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
@@ -49,6 +50,20 @@ intent는 guidance, urgent_safety, out_of_scope 중 하나로 category와 일치
 
 def _text_response(answer: str, *, response_type: str = "text") -> dict:
     return {"response_type": response_type, "answer": answer, "sources": []}
+
+
+def _format_recorded_at_kst(recorded_at: object) -> str:
+    """Format an API timestamp for caregivers in the app's Korea timezone."""
+    if not isinstance(recorded_at, str) or not recorded_at:
+        return "확인 필요"
+    try:
+        parsed = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        local_time = parsed.astimezone(ZoneInfo("Asia/Seoul"))
+        return f"{local_time.year}년 {local_time.month}월 {local_time.day}일 {local_time.hour}시 {local_time.minute:02d}분"
+    except ValueError:
+        return "확인 필요"
 
 
 CITY_ALIASES = {
@@ -123,6 +138,19 @@ GENERAL_BABY_GUIDANCE_PROMPT = """당신은 한국어 육아 도우미입니다.
 확인 질문을 덧붙이세요. 호흡 곤란, 청색증, 의식 저하, 탈수, 반복 구토, 고열 등
 위험 신호가 의심되면 일반 안내보다 즉시 의료기관 또는 119 도움을 우선하라고 안내하세요."""
 
+ALLERGY_AI_KEYWORDS = (
+    "알레르기", "알러지", "땅콩", "두드러기", "먹고 토", "먹은 후 토", "먹은 뒤 토",
+    "입술 부", "혀 부", "쌕쌕",
+)
+
+ALLERGY_GUIDANCE_PROMPT = """당신은 한국어 육아 도우미입니다. 등록된 알레르기 정보와
+월령을 참고하여 음식 알레르기 관련 일반 안내를 짧고 실용적으로 제공하세요. 질병을
+진단하거나, 새로운 식품 섭취를 허용하거나, 약물 용량·처방·응급약 사용법을 지시하지
+마세요. 음식 회피, 식품 라벨 확인, 교차 접촉 주의처럼 일반적인 예방 안내만 하세요.
+호흡이 힘듦, 입술·혀의 심한 부종, 반복 구토, 청색증, 의식 저하처럼 위험 신호가 있으면
+답변 첫머리에서 즉시 119 또는 의료기관과 보호자가 받은 알레르기 행동계획을 따르도록
+안내하세요. 정보가 부족하면 증상, 섭취 시점, 동반 증상을 1~2개만 확인하세요."""
+
 
 def _memory_instruction(memories: list) -> str:
     preferences = [memory.content for memory in memories if getattr(memory, "memory_type", "") == "preference"]
@@ -151,6 +179,51 @@ async def generate_general_baby_guidance(message: str, memories: list | None = N
             ],
         )
         return response.choices[0].message.content.strip() or fallback
+    except Exception:
+        return fallback
+
+
+def _is_allergy_ai_request(message: str) -> bool:
+    """Route allergy-related questions away from unsupported RAG categories."""
+    compact = re.sub(r"\s+", "", message)
+    return any(keyword.replace(" ", "") in compact for keyword in ALLERGY_AI_KEYWORDS)
+
+
+async def generate_allergy_guidance(
+    message: str,
+    baby: Baby,
+    memories: list | None = None,
+    recent_messages: list[dict] | None = None,
+) -> str:
+    """Generate guarded AI-only allergy guidance when no allergy RAG is available."""
+    allergies = ", ".join(baby.allergies) if baby.allergies else "등록된 알레르기 없음"
+    age_days = max(0, (date.today() - baby.birth_date).days)
+    profile_context = (
+        f"아기 이름: {baby.baby_name}\n"
+        f"월령: 생후 {age_days}일\n"
+        f"등록된 알레르기: {allergies}\n"
+        f"수유 방식: {baby.feeding_type}"
+    )
+    fallback = (
+        f"{baby.baby_name}의 등록된 알레르기 정보({allergies})를 반영한 AI 일반 안내예요. "
+        "원인 식품은 피하고 식품 라벨과 교차 접촉 가능성을 확인해 주세요. "
+        "호흡이 힘들어 보이거나 입술·혀가 심하게 붓고, 반복해서 토하거나 축 처지면 "
+        "즉시 119 또는 의료기관에 연락하고 보호자가 받은 알레르기 행동계획을 따라 주세요."
+    )
+    if not OPENAI_API_KEY:
+        return fallback
+    try:
+        response = await AsyncOpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
+            model=OPENAI_MODEL,
+            temperature=0.2,
+            messages=[
+                {"role": "system", "content": ALLERGY_GUIDANCE_PROMPT + _memory_instruction(memories or []) + "\n\n아기 정보:\n" + profile_context},
+                *(recent_messages or [])[-4:],
+                {"role": "user", "content": message},
+            ],
+        )
+        answer = response.choices[0].message.content.strip()
+        return answer or fallback
     except Exception:
         return fallback
 
@@ -187,10 +260,14 @@ def _extract_amount_ml(message: str) -> int | None:
 
 
 def _feeding_record(message: str) -> dict | None:
-    """Parse only explicit, bounded text feeding records; never guess an amount."""
-    is_feeding_action = any(word in message for word in ("먹었", "마셨", "수유했", "기록해", "기록해줘"))
+    """Parse bounded text feeding records without restricting amounts to UI presets."""
+    is_feeding_action = any(word in message for word in ("먹었", "먹였", "마셨", "수유했", "기록해", "기록해줘"))
     is_spaced_feeding_action = "수유" in message and "했" in message
-    if not is_feeding_action and not is_spaced_feeding_action:
+    # The reminder UI lets a caregiver reply with only an amount (for example
+    # ``165ml``).  Treat that unambiguous, standalone input as a feeding record
+    # too, while leaving questions such as "165ml 먹어도 돼?" as guidance.
+    is_amount_only = re.fullmatch(r"\s*(?:\d{1,3}|[일이삼사오육칠팔구영공십백]+)\s*(?:ml|밀리(?:리터)?)\s*", message, re.IGNORECASE)
+    if not is_feeding_action and not is_spaced_feeding_action and not is_amount_only:
         return None
     amount_ml = _extract_amount_ml(message)
     if amount_ml is None:
@@ -250,7 +327,8 @@ async def _handle_care_request(request, baby: Baby) -> dict | None:
             return _text_response("아직 저장된 수유 기록이 없어요. 예: ‘방금 분유 100ml 먹었어’라고 입력해 주세요.")
         details = latest.get("details", {})
         amount = details.get("amount_ml", "확인 필요")
-        return _text_response(f"최근 수유 기록은 {amount}ml이며, 기록 시각은 {latest.get('recorded_at', '확인 필요')}입니다.")
+        recorded_at = _format_recorded_at_kst(latest.get("recorded_at"))
+        return _text_response(f"최근 수유 기록은 {amount}ml이며, 기록 시각은 {recorded_at}입니다.")
 
     if "수유 패턴" in message or ("수유" in message and "패턴" in message):
         result = await get_care_records({"baby_id": request.baby_id, "query_type": "pattern", "days": 7})
@@ -368,6 +446,20 @@ async def answer_chat(request, app) -> dict:
     baby = await _validate_context(request, app)
     memories = await get_relevant_memories(app.state.db_engine, request.user_id, request.message)
     recent_messages = await get_recent_conversation(app.state.redis, request.user_id, request.session_id)
+    if _is_allergy_ai_request(request.message):
+        chat = {
+            "response_type": "text",
+            "answer": "AI 일반 안내 · 등록된 알레르기 정보를 반영했어요.\n\n" + await generate_allergy_guidance(request.message, baby, memories, recent_messages),
+            "sources": [],
+            "confidence": "low",
+            "safety_notice": "일반 안내이며 진단·처방을 대신하지 않습니다. 위험 증상은 즉시 119 또는 의료기관에 문의하세요.",
+        }
+        await app.state.redis.rpush(f"chat:{request.user_id}:{request.session_id}", json.dumps({"role": "user", "content": request.message}, ensure_ascii=False), json.dumps({"role": "assistant", "content": chat["answer"]}, ensure_ascii=False))
+        await app.state.redis.ltrim(f"chat:{request.user_id}:{request.session_id}", -8, -1)
+        await app.state.redis.expire(f"chat:{request.user_id}:{request.session_id}", 86400)
+        created = await save_memory_candidate(app.state.db_engine, request.user_id, request.message)
+        await write_chat_trace(app.state.redis, user_id=request.user_id, session_id=request.session_id, baby_id=request.baby_id, request_id=request_id, tool_used=False, memory_count=len(memories), memory_created=created)
+        return {"success": True, "message": "알레르기 AI 안내를 생성했습니다.", "request_id": request_id, "data": chat}
     care_response = await _handle_care_request(request, baby)
     if care_response is not None:
         await write_chat_trace(app.state.redis, user_id=request.user_id, session_id=request.session_id, baby_id=request.baby_id, request_id=request_id, tool_used=True, memory_count=len(memories), memory_created=False)

@@ -87,6 +87,38 @@ async def test_general_baby_questions_receive_safe_guidance(monkeypatch):
     assert "의료기관" in answer
 
 
+@pytest.mark.parametrize(
+    "message",
+    ["땅콩 알레르기가 있으면 뭘 조심해야 해?", "먹고 토했어", "두드러기가 났어"],
+)
+def test_allergy_questions_use_the_ai_guidance_route(message):
+    assert agent_service._is_allergy_ai_request(message) is True
+
+
+def test_non_allergy_question_does_not_use_the_allergy_ai_guidance_route():
+    assert agent_service._is_allergy_ai_request("낮잠은 몇 시간 재우면 돼?") is False
+
+
+def test_chat_formats_utc_record_times_in_korea_time():
+    assert agent_service._format_recorded_at_kst("2026-09-09T01:38:39Z") == "2026년 9월 9일 10시 38분"
+
+
+@pytest.mark.parametrize("message", ["110ml", "130ml", "165ml", "분유 50ml 먹었어", "모유 60ml 먹었어", "분유 123ml 먹였어"])
+def test_chat_accepts_any_supported_feeding_amount(message):
+    record = agent_service._feeding_record(message)
+    assert record is not None
+    assert 1 <= record["amount_ml"] <= 500
+
+
+@pytest.mark.parametrize("message", ["0ml", "501ml"])
+def test_chat_requests_clarification_for_out_of_range_feeding_amounts(message):
+    assert agent_service._feeding_record(message) == {"missing": True}
+
+
+def test_chat_does_not_treat_an_amount_question_as_a_feeding_record():
+    assert agent_service._feeding_record("165ml 먹어도 돼?") is None
+
+
 @pytest.mark.asyncio
 async def test_sleep_crying_question_is_semantically_routed_to_the_sleep_guide(monkeypatch):
     classifier = AsyncMock(return_value=agent_service.IntentClassification(
