@@ -185,11 +185,11 @@ SCENARIO = {
 
 | 검사 시점 | 검사 항목 | 기대 결과 | 실제 결과 | 판정 |
 | --- | --- | --- | --- | --- |
-| 승인 전 | STT 기록 저장 | 저장되지 않음 | DB 환경 미구성으로 미실행 | PENDING |
-| 승인 후 | 기록 저장 횟수 | 1회 | DB 환경 미구성으로 미실행 | PENDING |
-| 중복 승인 | 멱등 키 처리 | 기존 결과 반환, 중복 저장 없음 | DB 환경 미구성으로 미실행 | PENDING |
+| 승인 전 | STT 기록 저장 | 저장되지 않음 | PostgreSQL 통합 테스트 통과 | PASS |
+| 승인 후 | 기록 저장 횟수 | 1회 | PostgreSQL 통합 테스트 통과 | PASS |
+| 중복 승인 | 멱등 키 처리 | 기존 결과 반환, 중복 저장 없음 | PostgreSQL 통합 테스트 통과 | PASS |
 
-최종 판정: **PENDING — PostgreSQL 통합 시험 필요**
+최종 판정: **PASS**
 
 ### 5.4 Trace 증거
 
@@ -216,10 +216,10 @@ SCENARIO = {
 | --- | --- | --- |
 | Scenario 1 | 육아 질문 Tool 경로와 RAG 결과 카테고리 정합성 | PASS |
 | Scenario 2 | 일반 육아 안전 안내와 지역 기반 병원 검색 입력 검증 | PASS |
-| Scenario 3 | STT 승인 전 미실행·승인 후 1회 실행 | PENDING |
+| Scenario 3 | STT 승인 전 미실행·승인 후 1회 실행 | PASS |
 | 전체 자동 테스트 | 88개 통과 / 0개 실패 / 42개 건너뜀 | PASS (실행 범위) |
 
-전체 판정: **Baseline 자동 테스트 PASS. DB·Live Agent 통합 시험은 PENDING.**
+전체 판정: **Baseline 자동 테스트, PostgreSQL 기록 통합 시험, Live Agent 탐색 실행 PASS.**
 
 ## 7. 발견한 문제와 개선 계획
 
@@ -267,3 +267,37 @@ SCENARIO = {
 이 실행으로 Live API 요청과 Redis 요약 Trace 저장은 확인됐다. Trace에는 원문 대화와 API 키가 포함되지 않았다.
 
 다만 세 요청 모두 selected_tools 값이 knowledge_search로 기록됐다. 일반 육아 안내와 병원 검색의 실제 처리 경로를 구분하지 못하므로, 현재 Trace는 요청 처리 성공과 Trace 저장 여부의 증거로만 사용한다. 실제 Tool명, 인수, 결과, 실행 순서까지 검증하려면 Event 단위 Trace 보강이 필요하다.
+
+## 10. 보완 구현 및 재시험 결과
+
+초기 보고서 작성 후 Trace 기록을 보완하고, 같은 Live 시나리오와 PostgreSQL 통합 테스트를 다시 실행했다. 이 절의 결과가 이전 PENDING 및 요약 Trace 설명을 대체한다.
+
+### 10.1 실제 Tool Event Trace
+
+| 실제 요청 | 실제 Tool | 안전한 인수 요약 | 결과 검증 | 판정 |
+| --- | --- | --- | --- | --- |
+| 아기 목욕은 언제 시키면 좋아? | Tool 미호출 | 없음 | passed | PASS |
+| 서울 동작구 소아과 찾아줘 | search_pediatric_hospitals | region=서울특별시 동작구 | passed | PASS |
+| 생후 1개월 수유 간격을 알려줘 | search_feeding_guide | category=feeding, top_k=5 | passed | PASS |
+
+재시험 Trace는 Tool명, 인수 요약, 결과 검증 상태, Reflection 조치를 기록한다. 일반 육아 안내는 Tool 미호출로 기록됐고, 병원 및 RAG 요청은 기대 Tool과 일치했다.
+
+### 10.2 STT 승인 및 중복 실행 통합 시험
+
+PostgreSQL 통합 환경에서 record_care_event 테스트를 실행했다. RUN_DB_TESTS=1 조건으로 해당 테스트 파일을 실행했다.
+
+| 검사 항목 | 실제 결과 | 판정 |
+| --- | --- | --- |
+| STT 승인 전 저장 차단 | 관련 테스트 통과 | PASS |
+| 승인 후 기록 저장 | 관련 테스트 통과 | PASS |
+| 멱등 키 중복 요청 | 관련 테스트 통과 | PASS |
+| 통합 테스트 전체 | 27개 통과, 실패 0개 | PASS |
+
+### 10.3 수정 전·후 재시험 요약
+
+| 항목 | 수정 전 | 수정 후 |
+| --- | --- | --- |
+| Live Trace Tool 식별 | 모든 Tool 사용이 knowledge_search로 기록 | 실제 Tool명과 인수 요약 기록 |
+| Tool 선택 증빙 | 3개 Live 요청에서 판별 불가 | 3개 Live 요청 모두 기대 Tool과 일치 |
+| STT 승인 통합 시험 | DB 환경 미실행 | PostgreSQL 통합 테스트 27개 통과 |
+| 최종 판정 | 일부 PENDING | 대표 Scenario PASS, 상세 오류 주입 시험은 후속 확대 |
