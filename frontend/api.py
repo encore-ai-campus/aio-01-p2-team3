@@ -86,7 +86,7 @@ def request_backend(
 
 BABY = {
     "baby_id": "baby-001",
-    "baby_name": "서아",
+    "baby_name": "태경",
     "birth_date": "2026-08-03",
     "age_days": 31,
     "gender": "여아",
@@ -101,7 +101,9 @@ BABY = {
 
 def test_login(selected_user: str) -> dict:
     """Keep the demo account picker, but create a real backend session in live mode."""
-    user_id = "user-001" if selected_user.startswith("서아") else "user-002"
+    user_id = selected_user if selected_user in {"user-001", "user-002"} else (
+        "user-001" if selected_user.startswith(("서아", "태경")) else "user-002"
+    )
     if not USE_MOCK_API:
         return request_backend("POST", "/api/test-login", json={"user_id": user_id})
     return {"success": True, "data": {"user_id": user_id, "baby_id": BABY["baby_id"], "session_id": "demo-session"}}

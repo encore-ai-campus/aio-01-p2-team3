@@ -207,8 +207,13 @@ def render() -> None:
         </div>
         """,unsafe_allow_html=True); return
     if selected=="성장":
+        current_height = float(baby["current_height_cm"])
+        height_y = max(24, min(165, 180 - ((current_height - 48) / 12 * 140)))
+        height_label_y = max(20, height_y - 10)
         st.markdown(f"""
         <div style='background:#fff;border:1px solid #E3E7F1;border-radius:15px;padding:16px'>
+          <h3 style='margin:0 0 10px'>최근 측정 결과</h3>
+          <div style='background:#EEF1FF;padding:12px;border-radius:9px;margin-bottom:24px'><b>현재 몸무게 {current_weight:.1f}kg · 현재 키 {current_height:.1f}cm</b><br><span style='color:#68758E;font-size:13px'>{escape(baby['baby_name'])}가 건강하게 성장하고 있어요. 지금처럼 꾸준히 성장 기록을 확인해 주세요.</span></div>
           <div style='display:flex;justify-content:space-between;align-items:center'><h3 style='margin:0'>몸무게 변화</h3><span style='color:#6374DC;background:#EEF1FF;border-radius:8px;padding:7px 10px;font-size:13px'>몸무게</span></div>
           <svg viewBox='0 0 620 270' role='img' aria-label='{escape(baby['baby_name'])}의 몸무게 성장 그래프' style='width:100%;height:auto;margin-top:12px'>
             <rect x='55' y='34' width='535' height='156' rx='8' fill='#FFFFFF'/>
@@ -220,8 +225,18 @@ def render() -> None:
             <text x='545' y='{growth_label_y}' fill='#6374DC' font-size='12' font-weight='700'>{current_weight:.1f}kg</text>
           </svg>
           <div style='display:flex;gap:14px;color:#778198;font-size:12px'><span><b style='color:#6374DC'>●</b> {escape(baby['baby_name'])}</span><span><b style='color:#DDE3FF'>●</b> 같은 성별·월령 참고 범위</span></div>
-          <h3 style='margin:22px 0 10px'>최근 측정 결과</h3>
-          <div style='background:#EEF1FF;padding:12px;border-radius:9px'><b>현재 몸무게 {current_weight:.1f}kg</b><br><span style='color:#68758E;font-size:13px'>{escape(baby['baby_name'])}가 건강하게 성장하고 있어요. 지금처럼 꾸준히 성장 기록을 확인해 주세요.</span></div>
+          <div style='border-top:1px solid #E3E7F1;margin:24px 0'></div>
+          <div style='display:flex;justify-content:space-between;align-items:center'><h3 style='margin:0'>키 변화</h3><span style='color:#20A26B;background:#E9F8F1;border-radius:8px;padding:7px 10px;font-size:13px'>키</span></div>
+          <svg viewBox='0 0 620 270' role='img' aria-label='{escape(baby['baby_name'])}의 키 성장 그래프' style='width:100%;height:auto;margin-top:12px'>
+            <rect x='55' y='34' width='535' height='156' rx='8' fill='#FFFFFF'/>
+            <path d='M55 54H590 M55 102H590 M55 150H590 M55 190H590' stroke='#E3E7F1' stroke-dasharray='4 4'/>
+            <path d='M65 139 L195 123 L325 108 L455 94 L585 80 L585 115 L455 128 L325 142 L195 156 L65 170Z' fill='#D7F3E5' opacity='.9'/>
+            <path d='M65 148 L195 136 L325 124 L455 115 L585 {height_y:.1f}' fill='none' stroke='#20A26B' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/>
+            <g fill='#20A26B'><circle cx='65' cy='148' r='5'/><circle cx='195' cy='136' r='5'/><circle cx='325' cy='124' r='5'/><circle cx='455' cy='115' r='5'/><circle cx='585' cy='{height_y:.1f}' r='5'/></g>
+            <g fill='#778198' font-size='12'><text x='10' y='58'>60cm</text><text x='10' y='106'>55cm</text><text x='10' y='154'>50cm</text><text x='55' y='220'>출생</text><text x='171' y='220'>1주</text><text x='301' y='220'>2주</text><text x='431' y='220'>3주</text><text x='560' y='220'>현재</text></g>
+            <text x='538' y='{height_label_y:.1f}' fill='#20A26B' font-size='12' font-weight='700'>{current_height:.1f}cm</text>
+          </svg>
+          <div style='display:flex;gap:14px;color:#778198;font-size:12px'><span><b style='color:#20A26B'>●</b> {escape(baby['baby_name'])}</span><span><b style='color:#D7F3E5'>●</b> 같은 성별·월령 참고 범위</span></div>
         </div>
         """,unsafe_allow_html=True); return
     if selected=="예방접종":
