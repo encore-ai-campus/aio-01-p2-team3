@@ -19,7 +19,7 @@ AI Baby Care Assistant는 0~36개월 영유아를 돌보는 보호자를 위한 
 | Tool 연결 | Streamable HTTP MCP |
 | MCP Server | `baby_care_server`, `baby_info_server` |
 | Backend | FastAPI |
-| Frontend | Streamlit |
+| Frontend | Streamlit, 약간의 html/css |
 | 저장소 | PostgreSQL, Redis |
 | 외부 데이터 | RAG 문서, 병원 공공데이터 API |
 | 파일 처리 | 이미지·음성 임시 저장 후 삭제 |
