@@ -123,10 +123,13 @@ def _render_chat_feeding_reminder(baby: dict) -> None:
         st.session_state.feeding_reminder_status = "active"
         st.session_state.feeding_snooze_until = None
     with st.container(border=True):
+        reminder_interval = _format_feeding_interval(
+            int(st.session_state.get("feeding_interval_minutes", 180))
+        )
         st.markdown(
-            "<div class='soft-panel' style='margin:0 0 .7rem'>"
-            "<b>🍼 마지막 수유 후 3시간이 지났어요</b>"
-            "<div class='assistant-reminder-sub'>서아의 배고픔 신호를 확인해 주세요.</div>"
+            f"<div class='soft-panel' style='margin:0 0 .7rem'>"
+            f"<b>🍼 마지막 수유 후 {escape(reminder_interval)}이 지났어요</b>"
+            f"<div class='assistant-reminder-sub'>{escape(baby['baby_name'])}의 배고픔 신호를 확인해 주세요.</div>"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -283,6 +286,17 @@ def _search_hospitals_with_sse(region: str) -> dict:
 
 def render() -> None:
     baby = api.get_baby(st.session_state.baby_id, user_id=st.session_state.user_id, session_id=st.session_state.session_id)["data"]
+    reminder_result = api.get_feeding_reminder(
+        st.session_state.baby_id,
+        user_id=st.session_state.user_id,
+        session_id=st.session_state.session_id,
+    )
+    if reminder_result.get("success"):
+        st.session_state.feeding_interval_minutes = int(
+            reminder_result["data"]["feeding_interval_minutes"]
+        )
+    else:
+        st.session_state.setdefault("feeding_interval_minutes", 180)
     # audio_input is rendered after chat_draft. Move a completed STT result on
     # the next rerun, before Streamlit instantiates the text input widget.
     st.session_state.setdefault("pending_voice_draft", "")
