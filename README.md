@@ -162,7 +162,16 @@ streamlit run frontend/app.py
 - 알림은 사용자가 설정한 시간대와 권한을 기준으로 발송하며, 실패 시 재시도 또는 실패 상태를 기록합니다.
 - 접근 권한을 확인하여 보호자는 본인과 연결된 아기 정보만 조회·수정할 수 있도록 합니다.
 
-## 문서
+## 제출 문서 
+### 진행가이드 기반 산출물 제출 문서 2가지 
+- [산출물 1｜에이전트 아키텍처 설계서](documents/deliverable_1_agent_architecture.md)
+- [산출물 2｜에이전트 시험 결과 보고서](documents/deliverable_2_agent_test_report.md)
+
+### 강사님 요청 제출 문서 2가지 
+- [ai 에이전트 계획서](documents/agent-architecture-design.md)
+- [상세 ai 에이전트 테스트 완료보고서](documents/ai_agent_test_completion_report.md)
+
+## 기획 문서
 
 - [전체 기획서](documents/overall_plan.md)
 - [프론트엔드 기획서](documents/frontend_plan.md)
@@ -170,5 +179,3 @@ streamlit run frontend/app.py
 - [API 계약서](documents/frontend_api_contract.md)
 - [육아 기록·패턴 MCP 서버 계획서](documents/baby_care_server_plan.md)
 - [육아 정보 RAG·병원 검색 MCP 서버 계획서](documents/baby%20info%20server_plan.md)
-- [에이전트 아키텍처 설계서](documents/deliverable_1_agent_architecture.md)
-- [상세 에이전트 아키텍처 설계서](documents/agent-architecture-design.md)
