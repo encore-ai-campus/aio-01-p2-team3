@@ -1,4 +1,4 @@
-# AI 육아 도우미 백엔드 기술 개발계획서
+# 베베온(BebeOn) 백엔드 기술 개발계획서
 
 > Python·FastAPI 기반 백엔드와 MCP 서버를 구현하기 위한 기술 명세서입니다. Streamlit 화면 구현 내용은 포함하지 않습니다.
 >
@@ -1133,7 +1133,7 @@ FastAPI는 업로드·임시파일·MCP 호출·실패 시 정리를 담당하�
 | 409 | `APPROVAL_MISMATCH` | 승인 Snapshot과 실제 실행 Tool·인자가 불일치 |
 | 409 | `APPROVAL_ALREADY_PROCESSED` | 승인 버튼 중복 실행 또는 이미 처리된 Snapshot |
 | 403 | `TOOL_NOT_ALLOWED` | 허용되지 않은 Tool 실행 요청 |
-| 500 | `MAX_AGENT_STEPS_EXCEEDED` | Agent 최대 반복 횟수 초과 |
+| 200 | `max_steps_exceeded` (Trace) | 현재 MVP AgentLoop의 최대 6단계 초과; 추가 Tool 실행 없이 안전 응답 반환 |
 | 502 | `MODEL_ERROR` | OpenAI Agent 모델 호출 실패 |
 | 400 | `OUT_OF_SCOPE` | 육아 서비스 범위 밖 요청 |
 | 501 | `UNSUPPORTED_FEATURE` | 현재 구현하지 않은 기능 요청 |
@@ -1201,7 +1201,7 @@ memory_trace_id
 
 | 사용자 | 아기 조건 | 특징 |
 | --- | --- | --- |
-| 서아 보호자 | 생후 31일 | 분유, 마지막 수유 3시간 전 |
+| 태경 보호자 | 생후 31일 | 분유, 마지막 수유 3시간 전 |
 | 민준 보호자 | 생후 6개월 | 이유식 시작 |
 | 지우 보호자 | 생후 18개월 | 땅콩 알레르기 |
 

@@ -1,4 +1,4 @@
-# baby_care_server MCP 개발계획서
+# 베베온(BebeOn) baby_care_server MCP 개발계획서
 
 > 0~36개월 영유아의 육아 기록 저장·조회·패턴 계산과 기저귀 변 사진 분석을 담당하는 Python MCP 서버
 > 
@@ -109,7 +109,7 @@ stt
 - `input_source="text"` 또는 `input_source="ui"`이면 별도 승인 없이 저장
 - `input_source="stt"`이면 `confirmed_by_user=true`일 때만 저장
 - STT 입력인데 `confirmed_by_user`가 없거나 `false`이면 저장 거부
-- `idempotency_key` 중복 저장 금지
+- 동일 `idempotency_key`의 중복 저장 금지. STT 승인 흐름은 Redis Snapshot의 같은 키를 재사용해 정확히 한 번 처리하며, UI 요청도 동일 동작 재전송 시 같은 키를 재사용해야 한다.
 - `recorded_at`이 없으면 한국 시간 기준 현재 시각 사용
 
 종류별 입력 예시:
@@ -539,7 +539,7 @@ STT는 FastAPI 백엔드가 담당하며 `baby_care_server`는 음성 파일을 
 예를 들어 STT 결과가 다음과 같아도 바로 저장하지 않습니다.
 
 ```
-서아가 방금 분유를 100ml 먹었어.
+태경이가 방금 분유를 100ml 먹었어.
 ```
 
 AI Agent는 먼저 확인용 응답을 생성합니다.
@@ -547,7 +547,7 @@ AI Agent는 먼저 확인용 응답을 생성합니다.
 ```json
 {
   "response_type": "stt_record_approval",
-  "message": "서아가 현재 시간에 분유 100ml를 먹은 것으로 기록할까요?",
+  "message": "태경이가 현재 시간에 분유 100ml를 먹은 것으로 기록할까요?",
   "tool_call_id": "tool-call-001",
   "options": [
     {
@@ -639,7 +639,7 @@ record_care_event
 - STT 기록은 사용자가 `기록 완료`를 선택해야 함
 - STT 승인 전 데이터는 DB가 아니라 FastAPI가 관리하는 Redis에 저장
 - STT 승인 후 `record_care_event`가 `care_logs`에 영구 저장
-- 동일한 승인 요청의 중복 저장은 `idempotency_key`로 방지
+- 동일한 STT 승인 요청의 중복 저장은 Redis Snapshot의 `idempotency_key`로 방지
 - STT 음성 원본은 `baby_care_server`에 전달하지 않음
 
 ---

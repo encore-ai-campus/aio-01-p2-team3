@@ -31,6 +31,8 @@ class AgentState:
     error_type: str | None = None
     retry_count: int = 0
     max_retries: int = 1
+    step_count: int = 0
+    max_steps: int = 6
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,27 @@ class RetryableAgentError(RuntimeError):
 class AgentLoop:
     """Run one controlled request through plan → execute → verify."""
 
+    @staticmethod
+    def _advance(state: AgentState, stage: str) -> bool:
+        """Advance one bounded execution step without allowing unbounded loops."""
+        if state.step_count >= state.max_steps:
+            state.error_type = "max_steps_exceeded"
+            state.result_validation = "max_steps_exceeded"
+            state.reflection_action = "safe_fallback"
+            state.stages.append("max_steps_exceeded")
+            return False
+        state.step_count += 1
+        state.stages.append(stage)
+        return True
+
+    @staticmethod
+    def _max_steps_execution() -> AgentExecution:
+        return AgentExecution({
+            "response_type": "error",
+            "answer": "요청 처리 단계가 제한을 초과해 안전하게 종료했어요. 잠시 후 다시 요청해 주세요.",
+            "sources": [],
+        })
+
     async def run(
         self,
         state: AgentState,
@@ -66,13 +89,17 @@ class AgentLoop:
         verifier: Verifier,
         fallback: Fallback | None = None,
     ) -> AgentExecution:
-        state.stages.append("planning")
+        if not self._advance(state, "planning"):
+            return self._max_steps_execution()
         plan = await planner()
         state.plan = plan
-        state.stages.append("tool_policy_checked" if plan.selected_tools else "answer_planned")
+        if not self._advance(state, "tool_policy_checked" if plan.selected_tools else "answer_planned"):
+            return self._max_steps_execution()
 
         while True:
             try:
+                if not self._advance(state, "tool_executing" if plan.selected_tools else "answer_generating"):
+                    return self._max_steps_execution()
                 execution = await executor(plan)
                 break
             except RetryableAgentError as error:
@@ -80,7 +107,8 @@ class AgentLoop:
                 if plan.can_retry and state.retry_count < state.max_retries:
                     state.retry_count += 1
                     state.reflection_action = "retry_once"
-                    state.stages.append("retrying_tool")
+                    if not self._advance(state, "retrying_tool"):
+                        return self._max_steps_execution()
                     continue
                 if fallback is None:
                     raise
@@ -95,5 +123,6 @@ class AgentLoop:
             state.result_validation = "passed_after_retry" if state.result_validation == "passed" else state.result_validation
             if state.reflection_action == "none":
                 state.reflection_action = "retry_once"
-        state.stages.append("result_verified")
+        if not self._advance(state, "result_verified"):
+            return self._max_steps_execution()
         return execution

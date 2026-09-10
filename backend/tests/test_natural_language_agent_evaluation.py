@@ -53,8 +53,8 @@ def _request(message: str):
 
 
 @pytest.mark.asyncio
-async def test_twenty_natural_language_requests_run_through_real_agent_route_execute_verify(monkeypatch):
-    """Evaluate natural input; expected Tool plans are asserted after real planning."""
+async def test_twenty_natural_language_requests_compare_baseline_and_reflection(monkeypatch):
+    """Use an independent natural-language answer key for both conditions."""
     categories = {case.message: case.category for case in CASES if case.category is not None}
 
     async def classify_category(message: str) -> str | None:
@@ -94,8 +94,30 @@ async def test_twenty_natural_language_requests_run_through_real_agent_route_exe
     monkeypatch.setattr(agent_service, "generate_allergy_guidance", allergy_guidance)
 
     baby = Baby(id="baby-eval", user_id="user-eval", baby_name="테스트 아기", birth_date=date(2026, 5, 1), gender="female", feeding_type="formula", allergies=[])
+    baseline = {"total": len(CASES), "completed": 0, "route_correct": 0, "tool_selection_accuracy": 0, "response_type_correct": 0, "average_retry_count": 0.0}
+    reflected = {"total": len(CASES), "completed": 0, "route_correct": 0, "tool_selection_accuracy": 0, "response_type_correct": 0, "average_retry_count": 0.0}
+
     for index, case in enumerate(CASES, start=1):
         request = _request(case.message)
+
+        # Baseline deliberately omits AgentLoop verification/retry, while using
+        # the same real planner and executor with the same external boundaries.
+        baseline_plan = await agent_service._plan_chat_action(request)
+        baseline_execution = await agent_service._execute_chat_plan(
+            baseline_plan, request, baby, [], []
+        )
+        baseline_route_correct = baseline_plan.route == case.expected_route
+        baseline_tool_correct = baseline_plan.selected_tools == case.expected_tools
+        baseline_response_correct = baseline_execution.response["response_type"] == case.expected_response_type
+        baseline["route_correct"] += baseline_route_correct
+        baseline["tool_selection_accuracy"] += baseline_tool_correct
+        baseline["response_type_correct"] += baseline_response_correct
+        baseline["completed"] += all((
+            baseline_route_correct,
+            baseline_tool_correct,
+            baseline_response_correct,
+        ))
+
         state = AgentState(request_id=f"natural-language-{index}")
         execution = await AgentLoop().run(
             state,
@@ -110,3 +132,29 @@ async def test_twenty_natural_language_requests_run_through_real_agent_route_exe
         assert state.plan.selected_tools == case.expected_tools, case.message
         assert execution.response["response_type"] == case.expected_response_type, case.message
         assert state.result_validation in {"passed", "missing_input"}, case.message
+
+        reflected_route_correct = state.plan.route == case.expected_route
+        reflected_tool_correct = state.plan.selected_tools == case.expected_tools
+        reflected_response_correct = execution.response["response_type"] == case.expected_response_type
+        reflection_validation_passed = state.result_validation in {"passed", "missing_input"}
+        reflected["route_correct"] += reflected_route_correct
+        reflected["tool_selection_accuracy"] += reflected_tool_correct
+        reflected["response_type_correct"] += reflected_response_correct
+        reflected["completed"] += all((
+            reflected_route_correct,
+            reflected_tool_correct,
+            reflected_response_correct,
+            reflection_validation_passed,
+        ))
+        reflected["average_retry_count"] += state.retry_count / len(CASES)
+
+    assert baseline == {
+        "total": 20, "completed": 20, "route_correct": 20,
+        "tool_selection_accuracy": 20, "response_type_correct": 20,
+        "average_retry_count": 0.0,
+    }
+    assert reflected == {
+        "total": 20, "completed": 20, "route_correct": 20,
+        "tool_selection_accuracy": 20, "response_type_correct": 20,
+        "average_retry_count": 0.0,
+    }

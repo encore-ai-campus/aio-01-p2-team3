@@ -2,9 +2,9 @@
 
 ## 01. 프로젝트 개요
 
-> 구현 정합성 안내: 이 문서는 현재 MVP 구현 범위와 향후 확장할 Agent 구조를 함께 설명합니다. 현재 MVP는 Backend의 정책 기반 `AgentLoop`으로 계획 → 허용 Tool 실행 → 결과 검증을 처리하며, 권한·승인·기록 저장은 Backend 정책이 통제합니다. Reflection은 필수값 누락 보완 질문, 병원 검색 1회 재시도·안전 종료, RAG 근거 부족 안전 폴백까지 구현했습니다. 전체 StateGraph 노드가 독립 Runtime으로 실행되거나 모델이 자유롭게 반복 Function Calling을 수행하는 구조는 확장 목표입니다.
+> 구현 정합성 안내: 이 문서는 현재 MVP 구현 범위와 향후 확장할 Agent 구조를 함께 설명합니다. 현재 MVP는 Backend의 정책 기반 `AgentLoop`으로 계획 → 허용 Tool 실행 → 결과 검증을 처리하며, 권한·승인·기록 저장은 Backend 정책이 통제합니다. Reflection은 필수값 누락 보완 질문, 병원 검색 1회 재시도·안전 종료, RAG 근거 부족 안전 폴백까지 구현했습니다. 현재 Loop는 `max_steps=6`으로 실행 단계를 제한하고 초과 시 안전 종료·Trace 기록을 수행합니다. 전체 StateGraph 노드가 독립 Runtime으로 실행되거나 모델이 자유롭게 반복 Function Calling을 수행하는 구조는 확장 목표입니다.
 
-AI Baby Care Assistant는 0~36개월 영유아를 돌보는 보호자를 위한 AI 육아 도우미 서비스입니다.
+베베온(BebeOn)은 0~36개월 영유아를 돌보는 보호자를 위한 AI 육아 도우미 서비스입니다.
 
 보호자는 수유·수면·배변 등의 육아 기록을 관리하고, 아기 정보와 기록을 바탕으로 생활 패턴을 확인할 수 있습니다. 또한 AI에게 육아 관련 질문을 하고 필요한 정보나 병원 안내를 받을 수 있습니다.
 
@@ -36,6 +36,8 @@ AI Baby Care Assistant는 0~36개월 영유아를 돌보는 보호자를 위한 
 | MCP 연결 | Streamable HTTP |
 | 기록 원칙 | 텍스트·UI 기록은 검증 후 저장하고, STT로 생성된 기록만 사용자 승인 후 저장한다. |
 
+> 아래 `AgentProfile` 객체는 모델 주도 Function Calling Runtime을 도입할 경우의 **확장 설계 예시**이며, 현재 Backend Runtime의 실제 클래스가 아닙니다.
+
 ```python
 BABY_CARE_AGENT = AgentProfile(
     agent_id="baby_care",
@@ -48,7 +50,7 @@ BABY_CARE_AGENT = AgentProfile(
         "조회와 검색은 자동 실행합니다. 텍스트·UI 기록은 검증 후 저장하고 "
         "STT로 해석된 육아 기록만 사용자 승인 후 저장합니다."
     ),
-    example_question="서아가 방금 분유 100ml를 먹었어. 기록해 줘.",
+    example_question="태경이가 방금 분유 100ml를 먹었어. 기록해 줘.",
     instructions="""당신은 0~36개월 영유아 보호자를 지원하는 AI 육아 도우미입니다.
 먼저 로그인한 사용자의 아기 정보와 알레르기를 확인하세요.
 질문에 필요한 경우 get_care_records로 최근 육아 기록을 조회하세요.
@@ -249,7 +251,7 @@ CHAT_RESPONSE_TYPES = [
 | N-10 | 지역명 입력 | `서울 동작구 소아과 찾아줘` | `search_pediatric_hospitals` | 병원 목록·주소·전화·확인 시점 반환 |
 | N-11 | 지역명 입력 | `서울 동작구 응급실 찾아줘` | `search_emergency_hospitals` | 응급실 목록과 위급 시 119 안내 |
 | N-12 | 정상 이미지 업로드 | 기저귀 변 사진 분석 요청 | `analyze_infant_stool` 자동 실행 | 관찰 결과·출처·안전 안내 반환, 임시 파일 삭제 |
-| N-13 | 음성이 텍스트로 변환됨 | `서아가 분유 100ml 먹었어` | Backend 규칙 기반 추출로 실제 기록을 판별하고 STT 승인 Snapshot 생성 | 승인 후 Tool을 한 번 실행하고 Agent Loop 재개 없이 FastAPI가 저장 결과 반환 |
+| N-13 | 음성이 텍스트로 변환됨 | `태경이가 분유 100ml 먹었어` | Backend 규칙 기반 추출로 실제 기록을 판별하고 STT 승인 Snapshot 생성 | 승인 후 Tool을 한 번 실행하고 Agent Loop 재개 없이 FastAPI가 저장 결과 반환 |
 | N-14 | RAG와 기록 모두 필요 | `최근 기록을 보면 수면은 괜찮아?` | 기록 조회 후 수면 RAG 호출 | 기록 요약과 일반 가이드를 구분해 답변 |
 | N-15 | 최근 채팅 8개 유지 | 정상 대화 계속 | Redis 최근 메시지를 8개로 제한 | 원문은 TTL 만료 후 삭제; 대화 요약 자동 저장은 확장 목표 |
 
@@ -263,7 +265,7 @@ CHAT_RESPONSE_TYPES = [
 | E-04 | 수유량 `-100ml` | 숫자 범위 검증 실패 | X | 저장하지 않고 올바른 값 재요청 |
 | E-05 | STT 기록을 승인 없이 저장 시도 | `input_source=stt`와 `confirmed_by_user` 검증으로 차단 | X | 승인 필요 응답 반환 |
 | E-06 | 승인 Snapshot의 수유량 변경 | 저장된 Snapshot과 불일치 | X | `APPROVAL_MISMATCH` |
-| E-07 | 같은 승인 버튼 두 번 클릭 | `idempotency_key` 중복 확인 | 1회만 | 기존 처리 결과 반환 |
+| E-07 | 같은 STT 승인 요청을 반복 전송 | Redis Snapshot의 `idempotency_key` 중복 확인 | 1회만 | 기존 처리 결과 반환 |
 | E-08 | 승인 TTL 10분 만료 | Redis 승인 상태 없음 | X | `APPROVAL_EXPIRED` |
 | E-09 | 허용 목록 밖 Tool 요청 | Allowlist 검사 실패 | X | `TOOL_NOT_ALLOWED` |
 | E-10 | MCP 서버 연결 실패 | Agent Loop 안전 중단 | X | `MCP_SERVER_UNAVAILABLE`, 재시도 안내 |
@@ -274,7 +276,7 @@ CHAT_RESPONSE_TYPES = [
 | E-15 | 알레르기와 충돌하는 일반 추천 | 알레르기 규칙 우선 | O | 추천 중단과 의료진 확인 안내 |
 | E-16 | 지원하지 않는 사진 형식·10MB 초과 | FastAPI 파일 검증 단계에서 차단 | X | 파일 형식·크기 오류 |
 | E-17 | 변 사진에서 위험 신호 가능성 | 진단하지 않고 안전 규칙 적용 | O | 즉시 의료기관 확인 안내 |
-| E-18 | 최대 Agent 단계 초과 | Runtime이 반복 중단 | X | `max_steps_exceeded` |
+| E-18 | AgentLoop 최대 실행 단계 초과 | `max_steps=6` 상한에서 추가 Tool 실행 전 중단 | X | `max_steps_exceeded`, 안전 종료·Trace 기록 |
 | E-19 | OpenAI 응답 오류 | Trace에 오류 요약 후 종료 | X | `model_error` |
 | E-20 | Redis 채팅 원문 TTL 임박 | 현재는 TTL 만료로 원문 삭제 | O | 대화 요약 자동 저장은 확장 목표이며, 현재 영구 저장은 안전한 답변 선호 정보로 제한 |
 | E-21 | `아아아 1234 외계인 우유 뿅`처럼 의미를 이해할 수 없음 | 추측하지 않고 재입력 요청 | X | `UNRECOGNIZED_REQUEST`, 육아 질문 예시 안내 |
@@ -285,7 +287,9 @@ CHAT_RESPONSE_TYPES = [
 
 ---
 
-## 10. Agent Profile 공통 구조
+## 10. 확장 설계: Agent Profile 공통 구조
+
+> 이 절의 `AgentProfile`·전역 `allowed_tools`는 모델 주도 Function Calling Runtime을 위한 확장 설계다. 현재 MVP는 `baby_care_client`의 MCP Tool Allowlist와 Backend 정책 기반 계획 함수를 사용한다.
 
 ```python
 from dataclasses import dataclass
@@ -313,13 +317,13 @@ class AgentProfile:
 | `allowed_tools` | Agent가 발견하고 호출할 수 있는 Tool Allowlist |
 | `allowed_actions` | 현재 빈 목록. 수정·삭제·프로필·알림 변경은 FastAPI 일반 API에서 처리 |
 
-Agent Profile은 Agent Runtime과 분리합니다. 현재 Agent가 실행할 수 있는 기능은 `allowed_tools`에 등록된 MCP Tool뿐이며 `allowed_actions`는 빈 목록으로 유지합니다. 프로필·기록 수정·삭제와 알림 상태 변경은 Frontend가 FastAPI 일반 API를 직접 호출합니다. Runtime은 `allowed_tools`와 Backend 정책에 모두 등록된 Tool만 실행합니다.
+확장 Runtime에서는 Agent Profile을 Agent Runtime과 분리합니다. 프로필·기록 수정·삭제와 알림 상태 변경은 현재처럼 Frontend가 FastAPI 일반 API를 직접 호출합니다. 확장 Runtime도 `allowed_tools`와 Backend 정책에 모두 등록된 Tool만 실행하도록 설계합니다.
 
 ---
 
-## 11. `baby_care_agent` 설계
+## 11. 확장 설계: `baby_care_agent`
 
-문서 맨 위에 정의한 `BABY_CARE_AGENT` 하나를 사용합니다. Agent별 Goal·Instructions·Allowed Tools와 공통 Runtime을 분리하여, Model이 허용된 Tool만 선택하도록 합니다.
+문서 맨 위의 `BABY_CARE_AGENT` 예시는 확장 Runtime에서 사용할 단일 Agent Profile입니다. Agent별 Goal·Instructions·Allowed Tools와 공통 Runtime을 분리하여, Model이 허용된 Tool만 선택하도록 설계합니다.
 
 ### 11.1 요청별 판단 흐름
 
@@ -368,7 +372,9 @@ Agent Profile은 Agent Runtime과 분리합니다. 현재 Agent가 실행할 수
 | 저장된 기록 수정 | `PATCH /api/care-logs/{log_id}` | Frontend 입력과 소유권 검증 후 처리 |
 | 저장된 기록 삭제 | `DELETE /api/care-logs/{log_id}` | 삭제 대상과 소유권 검증 후 처리 |
 
-## 14. Tool 발견과 실행
+## 14. 확장 설계: Tool 발견과 모델 주도 실행
+
+> 이 절은 OpenAI Responses API 기반 반복 Function Calling Runtime을 도입할 때의 확장 구조입니다. 현재 구현은 Backend의 정책 기반 계획 함수와 MCP 클라이언트별 Allowlist를 사용하며, 전역 `AgentProfile`·`ACTION_POLICY`·`MAX_AGENT_STEPS`를 Runtime에 사용하지 않습니다.
 
 ```
 1. Agent State 생성
@@ -388,7 +394,7 @@ Agent Profile은 Agent Runtime과 분리합니다. 현재 Agent가 실행할 수
 15. MAX_AGENT_STEPS를 넘으면 안전하게 중단
 ```
 
-## 15. 공통 Agent Loop 예시
+## 15. 확장 설계: 공통 Agent Loop 예시
 
 ```python
 async def run_agent(state: dict) -> dict:
@@ -455,6 +461,8 @@ async def run_agent(state: dict) -> dict:
 | `termination_reason` | `str | None` | 완료·실패·중단 이유 |
 | `llm_calls` | `int` | LLM 호출 횟수 |
 | `tool_calls` | `int` | 실제 Tool 실행 횟수 |
+| `step_count` | `int` | 현재 AgentLoop가 소진한 실행 단계 수 |
+| `max_steps` | `int` | 현재 MVP 상한 6; 초과 시 `max_steps_exceeded` |
 | `trace` | `list[dict]` | 실행 사건 목록 |
 | `answer` | `str | None` | 최종 답변 |
 
@@ -522,7 +530,7 @@ async def execute_after_stt_approval(state: dict) -> dict:
 | OpenAI 오류 | `failed` | `model_error` |
 | MCP 오류 | `failed` | `mcp_tool_error` |
 | 허용되지 않은 Tool | `failed` | `invalid_tool_call` |
-| 최대 단계 초과 | `stopped` | `max_steps_exceeded` |
+| AgentLoop 최대 실행 단계 초과 | `failed` | `max_steps_exceeded` 및 안전 종료 |
 
 ---
 
@@ -690,7 +698,9 @@ FORBIDDEN_TOOLS = {
 | `upload_action` | 사용자가 사진을 올리고 분석 버튼을 누른 행동으로 실행 | 기저귀 사진 분석 |
 | `source_based` | 입력 출처에 따라 승인 여부 결정 | 텍스트·UI 기록은 즉시 실행, STT 기록은 확인 후 실행 |
 
-### 19.2 Allowlist와 정책 정합성 검사
+### 19.2 확장 설계: Allowlist와 정책 정합성 검사
+
+> 현재 구현은 `baby_care_client`의 MCP Tool Allowlist와 Backend의 소유권·입력·STT 승인 정책을 적용한다. 아래 전역 `AgentProfile`과 `ACTION_POLICY`의 이중 정책 테이블은 확장 설계다.
 
 ```python
 def validate_allowed_action(
