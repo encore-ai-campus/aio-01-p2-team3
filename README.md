@@ -165,7 +165,7 @@ streamlit run frontend/app.py
 ## 제출 문서 
 ### 진행가이드 기반 산출물 제출 문서 2가지 
 - [산출물 1｜에이전트 아키텍처 설계서](documents/deliverable_1_agent_architecture.md)
-- [산출물 1｜에이전트 아키텍처 설계서](documents/deliverable_2_agent_test_report.md)
+- [산출물 2｜에이전트 시험 결과 보고서](documents/deliverable_2_agent_test_report.md)
 
 ### 강사님 요청 제출 문서 2가지 
 - [ai 에이전트 계획서](documents/agent-architecture-design.md)
